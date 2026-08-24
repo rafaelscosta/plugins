@@ -1,0 +1,20 @@
+{
+  "name": "rafaelscosta-plugins",
+  "interface": {
+    "displayName": "Rafael Costa Plugins"
+  },
+  "plugins": [
+    {
+      "name": "project-continuity",
+      "source": {
+        "source": "local",
+        "path": "./plugins/project-continuity"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

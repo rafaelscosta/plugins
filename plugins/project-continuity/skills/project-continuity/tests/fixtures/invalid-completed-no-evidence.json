@@ -1,0 +1,11 @@
+{
+  "description": "A semantic anti-fixture: completed claim without hard evidence must be rejected.",
+  "claim": {
+    "id": "C-001",
+    "kind": "completed",
+    "confidence": "verified",
+    "statement": "Everything is done.",
+    "evidence": [],
+    "supersedes": []
+  }
+}

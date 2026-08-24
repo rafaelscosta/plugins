@@ -1,0 +1,42 @@
+{
+  "name": "project-continuity",
+  "version": "1.0.0",
+  "description": "Create, verify, consume, reconcile, and advance tamper-evident project continuity checkpoints across ChatGPT and Codex.",
+  "author": {
+    "name": "Rafael da Silva Costa"
+  },
+  "license": "MIT",
+  "keywords": [
+    "project-continuity",
+    "handoff",
+    "checkpoint",
+    "codex",
+    "chatgpt",
+    "verification",
+    "drift-detection",
+    "agent-workflows"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Project Continuity",
+    "shortDescription": "Verified project handoffs",
+    "longDescription": "Move project state between ChatGPT, Codex, chats, and agents without treating conversation summaries as truth. Project Continuity creates PCP/1 checkpoints, separates reported claims from verified evidence, checks integrity and repository drift when tools are available, reconciles external handoffs before execution, and prevents silent last-writer-wins updates. When repository access is unavailable, it degrades safely to portable checkpoints that must be reverified by the next capable surface.",
+    "developerName": "Rafael da Silva Costa",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Create portable or repository-backed project checkpoints",
+      "Verify checkpoint integrity and completion evidence",
+      "Detect repository drift and divergent project state",
+      "Reconcile ChatGPT handoffs with Codex repository reality",
+      "Prevent unsupported completion claims and silent head overwrites"
+    ],
+    "defaultPrompt": [
+      "Handoff to Codex",
+      "Handoff in",
+      "Create a verified checkpoint for this project."
+    ],
+    "brandColor": "#0F766E",
+    "composerIcon": "./assets/composer-icon.png",
+    "logo": "./assets/logo.png"
+  }
+}

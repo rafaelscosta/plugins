@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/project-continuity/pcp-1/state.schema.json",
+  "title": "Project Continuity State PCP/1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocol_version", "project", "generation", "head", "updated_at"],
+  "properties": {
+    "protocol_version": {"const": "pcp/1"},
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1}
+      }
+    },
+    "generation": {"type": "integer", "minimum": 0},
+    "head": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checkpoint_id", "content_digest"],
+      "properties": {
+        "checkpoint_id": {"type": ["string", "null"]},
+        "content_digest": {
+          "anyOf": [
+            {"type": "null"},
+            {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+          ]
+        }
+      }
+    },
+    "updated_at": {"type": "string", "format": "date-time"}
+  }
+}

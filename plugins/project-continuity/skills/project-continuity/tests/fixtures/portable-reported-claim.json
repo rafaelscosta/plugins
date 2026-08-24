@@ -1,0 +1,11 @@
+{
+  "description": "Portable mode should keep an unsupported implementation assertion as reported rather than completed.",
+  "claim": {
+    "id": "C-PORT-001",
+    "kind": "finding",
+    "confidence": "reported",
+    "statement": "A prior conversation stated that implementation was complete, but repository evidence is not available in this surface.",
+    "evidence": [],
+    "supersedes": []
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "protocol_version": "pcp/1",
+  "checkpoint_id": "pcp-PORTABLE-REPLACE-ME",
+  "created_at": "1970-01-01T00:00:00Z",
+  "producer": {
+    "surface": "chatgpt",
+    "model": null,
+    "session_ref": null
+  },
+  "project_id": "replace-me",
+  "parent": {
+    "checkpoint_id": null,
+    "content_digest": null
+  },
+  "baseline": {
+    "root_hint": ".",
+    "git": null,
+    "files": []
+  },
+  "objective": {
+    "current": "Replace with the current objective.",
+    "definition_of_done": []
+  },
+  "claims": [],
+  "evidence": [],
+  "open_work": [
+    {
+      "id": "W-001",
+      "title": "Verify portable checkpoint against the authoritative project state",
+      "status": "todo",
+      "priority": "critical",
+      "acceptance_criteria": [
+        "Project identity is confirmed.",
+        "Prior completion claims are checked against current files/repository.",
+        "A FULL or FILE reconciliation checkpoint is created."
+      ],
+      "depends_on": []
+    }
+  ],
+  "next_action": {
+    "work_item_id": "W-001",
+    "instruction": "Verify and reconcile this portable checkpoint against the authoritative project state before implementation work.",
+    "acceptance_criteria": [
+      "Current project state is inspected with available tools.",
+      "Unsupported claims remain reported or are downgraded.",
+      "Verified state is captured in a new checkpoint."
+    ]
+  },
+  "risks": [],
+  "verification": {
+    "status": "draft",
+    "sealed_at": null,
+    "content_digest": null,
+    "policy": "evidence-required-v1",
+    "surface_status": "unverifiable"
+  }
+}
