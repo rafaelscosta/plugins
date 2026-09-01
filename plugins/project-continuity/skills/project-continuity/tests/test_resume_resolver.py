@@ -158,13 +158,44 @@ def checkpoint(
     return value
 
 
+def _planning_item(
+    item_id: str,
+    kind: str,
+    title: str,
+    status: str,
+    parent_id: str | None,
+    priority: str,
+    evidence_refs: list[str] | None = None,
+) -> dict:
+    """Build one planning item using the canonical R3 hierarchy fields."""
+    return {
+        "id": item_id,
+        "kind": kind,
+        "title": title,
+        "status": status,
+        "parent_id": parent_id,
+        "priority": priority,
+        "depends_on": [],
+        "acceptance_criteria": ["Current repository state decides truth."],
+        "origin": {
+            "kind": "session_compiler",
+            "ref": "session:r5",
+            "observed_at": "2026-09-01T15:00:00Z",
+        },
+        "supersedes": [],
+        "evidence_refs": list(evidence_refs or []),
+        "repository_refs": [],
+    }
+
+
 def planning(
     *,
     project_id: str = "git-demo-project",
     status: str = "accepted",
     item_id: str = "story-001",
 ) -> dict:
-    """Build one single-leaf planning snapshot."""
+    """Build a valid Release→Epic→Story graph with one target leaf."""
+    target_evidence = ["E-HIST-STORY"] if status == "verified_done" else []
     value = {
         "format": "pcp-planning/1",
         "planning_id": "planning-resume-r5-001",
@@ -173,26 +204,33 @@ def planning(
         "source_checkpoint": None,
         "vision": "Mobile continuity",
         "items": [
-            {
-                "id": item_id,
-                "kind": "story",
-                "title": "Implement the resumed story",
-                "status": status,
-                "parent_id": None,
-                "priority": "high",
-                "depends_on": [],
-                "acceptance_criteria": ["Current repository state decides truth."],
-                "origin": {
-                    "kind": "session_compiler",
-                    "ref": "session:r5",
-                    "observed_at": "2026-09-01T15:00:00Z",
-                },
-                "supersedes": [],
-                "evidence_refs": (
-                    ["E-HIST-001"] if status == "verified_done" else []
-                ),
-                "repository_refs": [],
-            }
+            _planning_item(
+                "rel-001",
+                "release",
+                "Mobile continuity release",
+                "verified_done",
+                None,
+                "high",
+                ["E-HIST-REL"],
+            ),
+            _planning_item(
+                "epic-001",
+                "epic",
+                "Resume continuity epic",
+                "verified_done",
+                "rel-001",
+                "high",
+                ["E-HIST-EPIC"],
+            ),
+            _planning_item(
+                item_id,
+                "story",
+                "Implement the resumed story",
+                status,
+                "epic-001",
+                "high",
+                target_evidence,
+            ),
         ],
         "decisions": [],
         "unresolved_questions": [],
@@ -247,6 +285,18 @@ def init_local(root: pathlib.Path, *, project_id: str = "git-demo-project") -> N
     assert rc == 0
 
 
+def transition_for(result: dict, item_id: str) -> dict:
+    """Find one explicit/derived transition by item ID."""
+    matches = [
+        transition
+        for transition in result["planning"]["transitions"]
+        if transition.get("item_id") == item_id
+    ]
+    if not matches:
+        raise AssertionError(f"No transition found for {item_id}")
+    return matches[0]
+
+
 class ResumeResolverTests(unittest.TestCase):
     """R5 resolver + downgrade-first + planning-reconciliation contract."""
 
@@ -265,15 +315,9 @@ class ResumeResolverTests(unittest.TestCase):
         transport = resume.TRANSPORTS.FileTransport(allowed_root=root)
         reference = str(transport.reference_for_path(handoff))
         before = json.loads((root / ".continuity" / "state.json").read_text())
-
         resolved = resume.resolve_reference(reference, file_allowed_root=root)
-        result = resume.prepare_resume(
-            root,
-            resolved,
-            resolved_at="2026-09-01T15:06:00Z",
-        )
+        result = resume.prepare_resume(root, resolved, resolved_at="2026-09-01T15:06:00Z")
         after = json.loads((root / ".continuity" / "state.json").read_text())
-
         self.assertEqual(resolved["verification"]["checkpoint_integrity"], "unsealed-reported")
         self.assertEqual(result["planning"]["status"], "absent")
         self.assertFalse(result["pcp"]["external_promoted"])
@@ -295,10 +339,8 @@ class ResumeResolverTests(unittest.TestCase):
         root = self.make_root()
         cp = checkpoint()
         plan = planning()
-        cp_path = root / "checkpoint.json"
-        plan_path = root / "planning.json"
-        cp_path.write_text(json.dumps(cp), encoding="utf-8")
-        plan_path.write_text(json.dumps(plan), encoding="utf-8")
+        (root / "checkpoint.json").write_text(json.dumps(cp), encoding="utf-8")
+        (root / "planning.json").write_text(json.dumps(plan), encoding="utf-8")
         envelope = {
             "format": "pcp-handoff/1",
             "handoff_id": "handoff-file-r5-0001",
@@ -320,13 +362,11 @@ class ResumeResolverTests(unittest.TestCase):
         env_path = root / "envelope.json"
         env_path.write_text(json.dumps(envelope), encoding="utf-8")
         transport = resume.TRANSPORTS.FileTransport(allowed_root=root)
-        reference = str(transport.reference_for_path(env_path))
-
-        resolved = resume.resolve_reference(reference, file_allowed_root=root)
-        self.assertEqual(resolved["checkpoint"]["checkpoint_id"], cp["checkpoint_id"])
-        self.assertEqual(
-            resolved["planning_snapshot"]["planning_id"], plan["planning_id"]
+        resolved = resume.resolve_reference(
+            str(transport.reference_for_path(env_path)), file_allowed_root=root
         )
+        self.assertEqual(resolved["checkpoint"]["checkpoint_id"], cp["checkpoint_id"])
+        self.assertEqual(resolved["planning_snapshot"]["planning_id"], plan["planning_id"])
         self.assertTrue(resolved["verification"]["valid"])
 
     def test_github_reference_requires_authorized_client(self):
@@ -350,14 +390,8 @@ class ResumeResolverTests(unittest.TestCase):
             repository="project-continuity-state",
             created_at="2026-09-01T15:01:00Z",
         )
-        resolved = resume.resolve_reference(
-            receipt["reference"], github_client=client
-        )
-        result = resume.prepare_resume(
-            root,
-            resolved,
-            resolved_at="2026-09-01T15:06:00Z",
-        )
+        resolved = resume.resolve_reference(receipt["reference"], github_client=client)
+        result = resume.prepare_resume(root, resolved, resolved_at="2026-09-01T15:06:00Z")
         self.assertEqual(result["transport"], "github")
         self.assertEqual(result["planning"]["status"], "reconciliation-required")
         self.assertIsNone(result["resume_brief"]["candidate_frontier"])
@@ -365,12 +399,12 @@ class ResumeResolverTests(unittest.TestCase):
             result["pcp"]["historical_completion_claims"][0]["status"],
             "requires-reverification",
         )
-        draft = json.loads(
-            pathlib.Path(result["pcp"]["reconciliation_draft"]).read_text()
-        )
+        draft = json.loads(pathlib.Path(result["pcp"]["reconciliation_draft"]).read_text())
         imported_completion = [
-            claim for claim in draft["claims"]
-            if "Historical completion claim requiring current re-verification" in claim["statement"]
+            claim
+            for claim in draft["claims"]
+            if "Historical completion claim requiring current re-verification"
+            in claim["statement"]
         ]
         self.assertTrue(imported_completion)
         self.assertTrue(all(claim["confidence"] == "reported" for claim in imported_completion))
@@ -384,11 +418,7 @@ class ResumeResolverTests(unittest.TestCase):
             "checkpoint": checkpoint(),
             "planning_snapshot": planning(status="accepted"),
         }
-        result = resume.prepare_resume(
-            root,
-            resolved,
-            resolved_at="2026-09-01T15:06:00Z",
-        )
+        result = resume.prepare_resume(root, resolved, resolved_at="2026-09-01T15:06:00Z")
         self.assertTrue(result["execution_gate"]["planning_reconciliation_required"])
         self.assertFalse(result["execution_gate"]["candidate_frontier_available"])
         self.assertIsNone(result["resume_brief"]["candidate_frontier"])
@@ -406,15 +436,12 @@ class ResumeResolverTests(unittest.TestCase):
         result = resume.prepare_resume(
             root,
             resolved,
-            planning_reconciliation=reconciliation_request(
-                plan, operation="verify_complete"
-            ),
+            planning_reconciliation=reconciliation_request(plan, operation="verify_complete"),
             resolved_at="2026-09-01T15:06:00Z",
         )
+        transition = transition_for(result, "story-001")
         self.assertEqual(result["planning"]["status"], "reconciled")
-        self.assertEqual(
-            result["planning"]["transitions"][0]["classification"], "stale-plan"
-        )
+        self.assertEqual(transition["classification"], "stale-plan")
         self.assertIsNone(result["resume_brief"]["candidate_frontier"])
 
     def test_reported_done_absent_from_repo_reopens_as_frontier(self):
@@ -430,17 +457,13 @@ class ResumeResolverTests(unittest.TestCase):
         result = resume.prepare_resume(
             root,
             resolved,
-            planning_reconciliation=reconciliation_request(
-                plan, operation="verify_incomplete"
-            ),
+            planning_reconciliation=reconciliation_request(plan, operation="verify_incomplete"),
             resolved_at="2026-09-01T15:06:00Z",
         )
-        transition = result["planning"]["transitions"][0]
+        transition = transition_for(result, "story-001")
         self.assertEqual(transition["classification"], "incomplete-implementation")
         self.assertEqual(transition["to_status"], "ready")
-        self.assertEqual(
-            result["resume_brief"]["candidate_frontier"]["item_id"], "story-001"
-        )
+        self.assertEqual(result["resume_brief"]["candidate_frontier"]["item_id"], "story-001")
 
     def test_external_decisions_are_reported_in_resume_brief(self):
         root = self.make_root()
@@ -451,11 +474,7 @@ class ResumeResolverTests(unittest.TestCase):
             "checkpoint": checkpoint(),
             "planning_snapshot": None,
         }
-        result = resume.prepare_resume(
-            root,
-            resolved,
-            resolved_at="2026-09-01T15:06:00Z",
-        )
+        result = resume.prepare_resume(root, resolved, resolved_at="2026-09-01T15:06:00Z")
         decision = result["resume_brief"]["surviving_decisions"][0]
         self.assertEqual(decision["confidence"], "reported")
         self.assertEqual(result["resume_brief"]["objective"]["confidence"], "reported")
@@ -469,11 +488,7 @@ class ResumeResolverTests(unittest.TestCase):
             "checkpoint": checkpoint(),
             "planning_snapshot": None,
         }
-        result = resume.prepare_resume(
-            root,
-            resolved,
-            resolved_at="2026-09-01T15:06:00Z",
-        )
+        result = resume.prepare_resume(root, resolved, resolved_at="2026-09-01T15:06:00Z")
         self.assertTrue(
             any(
                 blocker["id"] == "W-BLOCKED-001"
@@ -491,11 +506,7 @@ class ResumeResolverTests(unittest.TestCase):
             "planning_snapshot": None,
         }
         with self.assertRaises(resume.ResumeResolutionError):
-            resume.prepare_resume(
-                root,
-                resolved,
-                resolved_at="2026-09-01T15:06:00Z",
-            )
+            resume.prepare_resume(root, resolved, resolved_at="2026-09-01T15:06:00Z")
 
     def test_explicit_project_mapping_allows_downgrade_first_draft_only(self):
         root = self.make_root(project_id="local-project")
