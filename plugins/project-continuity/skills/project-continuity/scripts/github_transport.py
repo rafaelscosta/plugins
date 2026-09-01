@@ -251,13 +251,19 @@ def parse_github_reference(value: str) -> dict[str, str]:
 
 
 def _repo_is_public(info: dict[str, Any]) -> bool:
-    """Return True only for a repository known to be public."""
+    """Return public/private classification or fail when visibility is unknown."""
     visibility = str(info.get("visibility") or "").lower()
     if visibility == "public":
         return True
     if visibility in {"private", "internal"}:
         return False
-    return info.get("private") is False
+    private = info.get("private")
+    if isinstance(private, bool):
+        return not private
+    raise TransportError(
+        "transport-unavailable",
+        "GitHub repository visibility could not be established safely",
+    )
 
 
 def _client_repository(client: Any, owner: str, repository: str) -> dict[str, Any]:
@@ -306,7 +312,7 @@ def _assert_safe_target(
     *,
     allow_public: bool,
 ) -> dict[str, Any]:
-    """Fail closed on a public destination unless this operation has explicit approval."""
+    """Fail closed on public/unknown destination visibility unless safely classified."""
     info = _client_repository(client, owner, repository)
     if _repo_is_public(info) and not allow_public:
         raise TransportError(
