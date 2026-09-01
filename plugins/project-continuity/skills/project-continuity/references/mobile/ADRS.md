@@ -73,3 +73,11 @@
 **Why:** Continuity artifacts cross surfaces and may be remotely persisted.
 
 **Consequence:** Evals include sensitive-data leakage and hidden-reasoning exclusion.
+
+## ADR-010 — Digest-bearing remote envelopes reference sealed portable checkpoints
+
+**Decision:** Any PCP checkpoint referenced by `pcp-handoff/1` must be sealed and expose the same canonical `verification.content_digest` recorded in the envelope. A ChatGPT PORTABLE producer may seal without repository evidence, but must retain `surface_status: unverifiable` and must not upgrade reported/inferred empirical claims.
+
+**Why:** The remote envelope needs a stable checkpoint digest. Allowing draft checkpoints with `content_digest: null` would either make remote integrity unverifiable or force a second competing checkpoint-hash semantic.
+
+**Consequence:** PCP/1 sealing is explicitly separated from empirical verification. Legacy direct file handoff may continue to transfer an unsealed draft outside the envelope; remote envelope publication may not.
