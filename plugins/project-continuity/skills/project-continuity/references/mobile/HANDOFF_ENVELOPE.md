@@ -39,12 +39,26 @@ The envelope is not canonical project state and MUST NOT be used to elevate clai
 
 `planning_snapshot` MAY be null when the handoff has no long-horizon planning sidecar.
 
+## Checkpoint sealing rule
+
+Any checkpoint referenced by a digest-bearing `pcp-handoff/1` envelope MUST be a **sealed PCP/1 checkpoint** whose `verification.content_digest` equals `checkpoint.digest`.
+
+For a PORTABLE ChatGPT producer, sealing is an integrity operation only:
+
+- empirical claims without current hard evidence remain `reported` or `inferred`;
+- `verification.surface_status` remains `unverifiable` when the surface cannot verify project reality;
+- sealing MUST NOT create a PCP `completed` claim or otherwise upgrade confidence;
+- the receiving FULL consumer still uses downgrade-first consumption and repository reconciliation.
+
+The legacy direct file flow MAY continue to transfer a PCP draft outside a handoff envelope. That backward-compatible draft flow has no envelope digest and remains explicitly unsealed/reported until consumed.
+
 ## Integrity rules
 
-1. Checkpoint digest MUST equal the canonical PCP digest recorded by the checkpoint.
+1. Checkpoint digest MUST equal the canonical PCP digest recorded by the sealed checkpoint.
 2. Planning snapshot digest MUST be SHA-256 of canonical JSON bytes using sorted keys and compact separators, with its own `content_digest` set to null during hashing if that field is present.
 3. Envelope location fields are locators only; fetched bytes must be verified against the recorded digest.
 4. Envelope mutation is detectable only if the envelope itself is transported through a mechanism with its own immutable identity/content hash. PCP/1 checkpoint integrity does not authenticate the envelope.
+5. A draft checkpoint with `verification.content_digest = null` MUST NOT be published through a digest-bearing `pcp-handoff/1` envelope.
 
 ## Project identity
 
