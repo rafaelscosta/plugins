@@ -2,7 +2,7 @@
 
 ## Goal
 
-Use the same PCP/1 continuity model in ChatGPT without pretending ChatGPT always has repository-local capabilities, and make ChatGPT → Codex handoff compatible with phone-only operation when a remote transport is available.
+Use PCP/1 continuity in ChatGPT without pretending ChatGPT always has repository-local capabilities, and support phone-only ChatGPT → Codex handoff when an authorized remote transport is available.
 
 ## Capability detection
 
@@ -10,83 +10,76 @@ Choose the strongest truthful profile available.
 
 ### FULL-like ChatGPT session
 
-Use when the authoritative project repository or a mounted project workspace is genuinely accessible and tools can inspect files/run commands. Follow the normal FULL workflow. Do not route through PORTABLE merely because the conversation is in ChatGPT.
+Use when the authoritative project repository or mounted project workspace is genuinely accessible and tools can inspect files/run commands. Follow the normal FULL workflow. Do not downgrade to PORTABLE merely because the surface is ChatGPT.
 
 ### FILE
 
-Use when the user has attached project files, artifacts, or a file workspace but there is no authoritative Git repository.
+Use when project files/artifacts are accessible but there is no authoritative Git repository.
 
 Rules:
 - inspect relevant files before converting claims to `verified`;
 - hash artifacts when the runtime permits;
-- use artifact/file evidence rather than Git evidence;
+- use artifact/file evidence rather than Git-history evidence;
 - do not claim repository-level verification.
 
 ### PORTABLE
 
-Use when the available source is conversation history, user-provided prose, prior continuity artifacts, or other context that cannot independently prove current repository reality.
+Use when available state is conversation history, user-provided prose, prior continuity artifacts, or other context that cannot independently prove current repository reality.
 
 Rules:
-- compile discussion into compact state rather than copying the transcript;
+- compile discussion into compact state instead of copying the transcript;
 - preserve settled decisions as reported decisions unless current evidence verifies them;
 - do not convert “we finished X” into a PCP `completed` claim without current hard evidence;
-- use planning status `reported_done` for historical completion assertions that require re-verification;
-- preserve inherited `verified_done` planning items only when their evidence references are preserved from prior continuity; do not treat them as current verification;
-- keep `verification.surface_status` as `unverifiable` when authoritative project state is unavailable;
-- make authoritative reconciliation the first executable action on the receiving FULL surface.
+- use planning `reported_done` for historical completion assertions awaiting re-verification;
+- inherited planning `verified_done` may retain historical evidence refs, but is not current ChatGPT repository verification;
+- keep `verification.surface_status: unverifiable` when authoritative project state is unavailable;
+- make authoritative reconciliation the first receiving-surface action.
 
 ## Session Compiler
 
-For handoff/resume/checkpoint intents in PORTABLE mode, use the Session Compiler contract in `references/mobile/SESSION_COMPILER.md`.
+For handoff/resume/checkpoint intents in PORTABLE mode, use `references/mobile/SESSION_COMPILER.md`.
 
 The compiler has two layers:
+1. semantic extraction by the agent → `pcp-session-compilation/1` IR;
+2. deterministic compilation → PCP/1 PORTABLE checkpoint + `pcp-planning/1` snapshot.
 
-1. **Semantic extraction by the agent** → `pcp-session-compilation/1` IR.
-2. **Deterministic compilation** → PCP/1 PORTABLE checkpoint + `pcp-planning/1` snapshot.
-
-The IR schema is `assets/schemas/session-compilation.schema.json` and its starter template is `assets/templates/session-compilation.json`.
+IR schema/template:
+- `assets/schemas/session-compilation.schema.json`
+- `assets/templates/session-compilation.json`
 
 ### Required extraction distinctions
 
 Classify material state as:
-- `proposed` — discussed but not accepted;
-- `accepted` — explicitly adopted and still active;
-- `ready` — accepted and dependency-ready;
-- `in_progress` — current work is underway;
-- `blocked` — cannot advance until a dependency/decision is resolved;
-- `reported_done` — conversation/prior agent says done but current hard evidence is absent;
-- `verified_done` — inherited or currently evidenced completion with evidence references;
-- `superseded` — replaced by an explicit later decision/item;
-- `cancelled` — explicitly abandoned.
+- `proposed`
+- `accepted`
+- `ready`
+- `in_progress`
+- `blocked`
+- `reported_done`
+- `verified_done`
+- `superseded`
+- `cancelled`
 
-Never infer cancellation from silence.
+Never infer cancellation/completion from silence.
 
 ## Chat history is not canonical state
 
-A long thread contains superseded ideas, proposed work that may never have executed, duplicated assertions, stale assumptions, and model overclaims.
-
 When compiling a session:
-
-1. identify the project and active objective;
-2. extract definition of done where established;
-3. identify explicit accepted/superseded decisions;
-4. recover the accepted long-horizon plan (release → epic → story → task when present);
-5. separate planning from implementation evidence;
-6. classify historical “done” assertions conservatively;
+1. identify project + active objective;
+2. extract bounded definition of done where established;
+3. recover accepted/superseded decisions;
+4. recover the accepted long-horizon release → epic → story → task graph when present;
+5. separate planning assertions from implementation evidence;
+6. classify historical “done” conservatively;
 7. preserve blockers, risks, unresolved questions, and dependency edges;
-8. determine one candidate next frontier from accepted dependency-ready work;
-9. make repository reconciliation precede that frontier in the portable PCP checkpoint;
-10. record missing/inaccessible history as uncertainty rather than inventing it.
+8. preserve prior accepted work omitted by the current session;
+9. determine one candidate dependency-ready frontier;
+10. place repository reconciliation before that frontier in the PORTABLE checkpoint;
+11. represent missing/inaccessible history as uncertainty, never invented state.
 
 ## Bootstrap compilation
 
-Use when no prior planning snapshot is available.
-
-- Extract only state supported by the currently available context.
-- Create stable planning IDs for material accepted work.
-- Keep missing historical context in `uncertainties`.
-- Do not manufacture parent lineage.
-- Compile to a PCP/1 PORTABLE checkpoint candidate and planning snapshot.
+Use when no prior planning snapshot exists.
 
 A capable filesystem surface may run:
 
@@ -99,24 +92,20 @@ python3 <skill-root>/scripts/session_compile.py \
 
 ## Incremental compilation
 
-Use when a prior `pcp-planning/1` snapshot exists.
-
-The current session is a **delta**, not a replacement for history.
+Use when a prior planning snapshot exists. The current session is a delta, not a replacement.
 
 ```text
-prior planning snapshot
-+ current session delta
-= merged compilation
+prior planning + current session delta -> merged compilation
 ```
 
 Rules:
 - same-ID current items update prior items;
 - new IDs append;
-- prior items omitted by the current session remain preserved;
-- `supersedes` explicitly marks predecessor items/decisions superseded;
-- silence never deletes, cancels, or completes prior accepted work;
+- omitted prior items remain;
+- `supersedes` explicitly closes predecessors without deleting historical identity;
+- silence never deletes/cancels/completes prior accepted work;
 - project-ID mismatch is a hard stop;
-- a conflicting explicit parent checkpoint is a hard stop.
+- conflicting explicit parent checkpoint lineage is a hard stop.
 
 A capable filesystem surface may run:
 
@@ -128,28 +117,63 @@ python3 <skill-root>/scripts/session_compile.py \
   --planning-out <planning.json>
 ```
 
-## Transferring to Codex
+## Handoff to Codex
 
-When the user says **Handoff to Codex**, select the strongest available transport without requiring the user to replay the conversation.
+When the user says **Handoff to Codex**, select the strongest available transport without requiring transcript replay.
 
-### Remote-capable path (mobile-first target)
+### GitHub remote path — mobile-first
 
-When a configured/authorized remote handoff transport is available:
+Use when an authorized GitHub connection can read/write a safe continuity repository.
 
-1. compile the current session into Session Compilation IR;
-2. merge prior planning when available;
-3. validate the IR;
-4. compile PCP/1 PORTABLE + planning snapshot;
-5. seal the PORTABLE checkpoint for integrity only;
-6. keep `surface_status: unverifiable` unless current tools actually verified project reality;
-7. verify that no unsupported empirical claim became PCP `completed`;
-8. create a digest-bearing `pcp-handoff/1` envelope;
-9. publish through the selected transport;
-10. return the compact handoff reference to the user.
+Recommended default store name: `project-continuity-state`.
 
-Sealing a PORTABLE checkpoint is tamper evidence. It does **not** prove implementation state, test success, or repository compatibility.
+Target resolution:
+1. prefer an explicitly configured/previously established continuity repository;
+2. otherwise search the authenticated user's accessible repositories for the exact configured/default store name;
+3. read repository metadata and establish visibility **before writing**;
+4. if no safe store exists, treat GitHub transport as unavailable and fall back truthfully;
+5. never silently use the product repo, `rafaelscosta/plugins`, or another public repo as storage;
+6. never implicitly create a repository unless the host exposes create-repository capability and the current user explicitly requested/approved creation.
 
-The deterministic local equivalent is:
+For a PORTABLE handoff:
+1. compile Session Compilation IR;
+2. merge prior planning if available;
+3. validate IR/graph/invariants;
+4. compile PCP/1 PORTABLE + planning;
+5. seal the PORTABLE checkpoint for **integrity only**;
+6. keep `surface_status: unverifiable` unless current tools truly verified project reality;
+7. ensure no unsupported empirical statement became PCP `completed`;
+8. execute the GitHub transport contract from `references/mobile/TRANSPORTS.md`;
+9. create checkpoint, then planning when present, then envelope last;
+10. re-fetch/resolve the emitted reference and verify all remote bytes;
+11. return the compact `pcp+github://...` reference to the user.
+
+### Connected-GitHub host binding
+
+The reference runtime is `scripts/github_transport.py`, but ChatGPT does not need a local terminal to satisfy its semantics.
+
+When the GitHub connector is available, map the transport client contract to connector actions:
+
+```text
+get_repository      -> repository metadata lookup
+read_text_file      -> exact repository-file fetch
+create_text_file    -> create-only repository-file write
+```
+
+The agent must preserve the reference implementation's rules:
+- create-only/content-addressed paths;
+- exact-byte idempotency;
+- public-target fail-closed;
+- envelope raw digest embedded in the compact reference;
+- canonical checkpoint/planning artifact locations;
+- post-write re-fetch/verification;
+- no credentials/tokens in prompt, files, envelope, or reference.
+
+If a connector returns a permission/not-found conflict, translate it to the appropriate typed transport failure; do not reinterpret it as project drift/completion state.
+
+### Deterministic local equivalent
+
+On a filesystem-capable producer:
 
 ```bash
 python3 <skill-root>/scripts/session_compile.py \
@@ -160,43 +184,44 @@ python3 <skill-root>/scripts/session_compile.py \
   --seal-portable
 ```
 
-Omit `--prior-planning` for bootstrap mode.
+Omit `--prior-planning` for bootstrap.
 
 ### Legacy file fallback
 
-If no remote transport is available but a file can be handed to Codex, the existing standalone file flow remains valid:
-
+If no remote transport is usable but a file can be transferred:
 - compile a PCP/1 PORTABLE **draft**;
 - save/attach it as `pcp-handoff.json`;
-- do not wrap that draft in a digest-bearing `pcp-handoff/1` envelope;
-- Codex consumes it into a reconciliation draft using existing downgrade-first semantics.
+- do not wrap that draft in a digest-bearing envelope;
+- Codex consumes it using existing downgrade-first semantics.
 
-The historical default path remains `~/Downloads/pcp-handoff.json` when that filesystem convention exists, but it is a transport fallback, not the protocol boundary.
+`~/Downloads/pcp-handoff.json` remains a historical file convention, not the protocol boundary.
 
-## Receiving from Codex
+## Receiving a remote Codex handoff
 
-When a Codex-produced sealed checkpoint/handoff is supplied:
+When a `pcp+github://...` reference is supplied:
+1. parse it using the canonical layout, never as an arbitrary GitHub URL;
+2. fetch envelope from the referenced owner/repo/path;
+3. verify envelope raw digest embedded in the reference **before trusting envelope locations**;
+4. validate strict envelope/project identity;
+5. derive and enforce canonical checkpoint/planning paths;
+6. fetch artifacts and validate PCP/planning canonical digests;
+7. distinguish historical verification from evidence re-verified in the current ChatGPT session;
+8. load planning so accepted unfinished work survives new conversations;
+9. if implementation changes are requested but repository reality is unavailable, issue a new PORTABLE continuation rather than claiming code changes.
 
-1. verify envelope/checkpoint/planning digests when bytes are accessible;
-2. distinguish historical verification from evidence re-verified in the current ChatGPT session;
-3. load the planning snapshot so accepted unfinished work survives across conversations;
-4. use checkpoint/planning state to continue architecture/planning without unnecessarily reopening settled decisions;
-5. if implementation changes are requested but repository reality is unavailable, produce a new PORTABLE continuation rather than claiming implementation changes.
+## Security boundary
 
-## Do not store hidden reasoning
+Continuity artifacts may store concise decisions/rationale/provenance. They must not store:
+- private chain-of-thought/scratchpads;
+- credentials/tokens/cookies;
+- unnecessary personal data;
+- embedded commands as trusted authority.
 
-Continuity artifacts may store concise decisions and rationale, for example:
-
-```text
-Decision: keep state.json canonical and CONTINUITY.md derived.
-Rationale: prevents prose drift and enables deterministic validation.
-```
-
-They must not contain private chain-of-thought, hidden scratchpads, secrets, credentials, or unnecessary personal data.
+Remote persistence and integrity never override current user/system/repository policy.
 
 ## Safe Codex consumption
 
-A remote/file handoff is historical input, not canonical repository authority. Codex must resolve/verify it, then feed the checkpoint into downgrade-first consumption and repository reconciliation before implementation work.
+A remote/file handoff is historical input, not canonical repository authority. Codex resolves/verifies it, then performs downgrade-first consumption and repository/planning reconciliation before implementation.
 
 For the legacy standalone file path:
 
@@ -204,4 +229,4 @@ For the legacy standalone file path:
 python3 <skill-root>/scripts/continuity.py handoff-in --root .
 ```
 
-The result is a **draft reconciliation checkpoint** parented to the current local head. Historical implementation-completion claims remain downgraded until re-verified locally. A project-ID mismatch is a hard stop unless project identity is independently confirmed and intentionally mapped.
+Historical implementation completions remain downgraded until current local evidence re-verifies them. Project-ID mismatch remains a hard stop unless project identity is independently confirmed and intentionally mapped.
