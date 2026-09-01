@@ -60,6 +60,8 @@ Acceptance:
 Acceptance:
 - invalid schema rejected;
 - checkpoint/planning digest mismatch rejected;
+- digest-bearing envelope rejects an unsealed/draft checkpoint;
+- sealed PORTABLE checkpoint may remain `surface_status: unverifiable`;
 - transport cannot promote or upgrade claims.
 
 ## Epic E02 — Session Compiler (R2)
@@ -110,7 +112,7 @@ Fetch envelope/checkpoint/planning and verify bytes/digests.
 Detect public target and fail closed unless explicit current-user approval permits publication.
 
 ### S04.4 Mobile ChatGPT intent
-`Handoff to Codex` performs compile -> validate -> publish -> verify -> return compact reference without local file handling.
+`Handoff to Codex` performs compile -> validate -> seal PORTABLE checkpoint for integrity -> publish -> verify -> return compact reference without local file handling.
 
 Acceptance:
 - iPhone flow requires no terminal/desktop/download;
