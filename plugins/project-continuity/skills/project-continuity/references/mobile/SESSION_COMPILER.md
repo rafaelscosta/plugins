@@ -19,10 +19,12 @@ The compiler MUST NOT assume inaccessible older turns are available. Incremental
 
 The compiler emits:
 
-1. a PCP/1-compatible portable/reconciliation checkpoint;
+1. a PCP/1-compatible portable/reconciliation checkpoint candidate;
 2. an optional planning snapshot when long-horizon work exists;
 3. provenance links between extracted items and their source category;
 4. one bounded next frontier plus acceptance criteria.
+
+Before a checkpoint is referenced by a digest-bearing remote handoff envelope, the producer seals that PORTABLE checkpoint according to PCP/1 canonical-digest rules. This seal is tamper evidence, not repository verification.
 
 ## Extraction pipeline
 
@@ -55,6 +57,22 @@ The compiler MUST distinguish:
 - `verified_done`: current hard evidence satisfies the bounded completion claim.
 
 `reported_done` MUST NEVER be serialized as a PCP `completed` claim. PCP `completed` remains reserved for `verified` claims with hard evidence.
+
+## Remote publication boundary
+
+When the output will be referenced by `pcp-handoff/1`:
+
+1. validate the PORTABLE checkpoint as a PCP/1 draft candidate;
+2. ensure empirical statements that cannot be checked now remain `reported`/`inferred`;
+3. ensure there are no unsupported PCP `completed` claims;
+4. set `verification.status` to `sealed`;
+5. set `verification.surface_status` to `unverifiable` when project reality is unavailable;
+6. compute `verification.content_digest` with the normal PCP/1 canonical digest procedure;
+7. include that exact digest in the handoff envelope.
+
+Sealing MUST NOT be interpreted as evidence that implementation exists, tests pass, or the repository matches the conversation. A FULL consumer still performs downgrade-first import and reconciliation.
+
+A legacy direct file handoff may remain an unsealed PCP draft outside the envelope for backward compatibility.
 
 ## Decision precedence
 
@@ -130,6 +148,7 @@ A conforming compiler must correctly handle at least:
 6. a newer repository state implementing work marked `accepted`/`ready` in the old plan;
 7. contradictory completion claims from parallel agents;
 8. unavailable historical context without inventing missing state;
-9. sensitive material that must not be copied into handoff artifacts.
+9. sensitive material that must not be copied into handoff artifacts;
+10. remote publication of a PORTABLE checkpoint that becomes sealed/tamper-evident without upgrading any unverified empirical claim.
 
 Expected semantics for case 2: B1-B3 may be `verified_done` only with current hard evidence; B4 is `reported_done`; B5-B10 remain accepted unfinished work and MUST NOT disappear.
