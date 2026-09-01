@@ -36,6 +36,7 @@ Create fixtures for:
 13. `mvp-with-post-mvp-work`
 14. `repository-ahead-of-plan`
 15. `plan-ahead-of-repository`
+16. `portable-seal-without-verification`
 
 Each fixture needs an input transcript/state, expected semantic facts, forbidden promotions, and expected next-frontier constraints.
 
@@ -49,6 +50,8 @@ Each fixture needs an input transcript/state, expected semantic facts, forbidden
 - permission failure typed as `permission-denied`;
 - checkpoint digest mismatch rejected;
 - planning digest mismatch rejected;
+- digest-bearing envelope rejects an unsealed/draft checkpoint;
+- a sealed PORTABLE checkpoint with `surface_status: unverifiable` is accepted for integrity without upgrading empirical claims;
 - transport metadata cannot override project ID;
 - same immutable bundle publication is idempotent or safely duplicated;
 - different bytes cannot overwrite immutable handoff identity silently.
@@ -60,6 +63,8 @@ Each fixture needs an input transcript/state, expected semantic facts, forbidden
 - public target publication fails closed by default;
 - explicit approval path is separately tested;
 - ChatGPT mobile flow does not require a filesystem path;
+- PORTABLE checkpoint is sealed before remote envelope publication;
+- portable sealing leaves unsupported empirical claims reported/inferred and `surface_status: unverifiable`;
 - returned handoff reference contains no credentials/token-bearing URL;
 - Codex can resolve the reference without user copying the entire JSON payload.
 
@@ -69,8 +74,11 @@ All existing PCP/1 tests remain mandatory. Additional compatibility assertions:
 
 - current checkpoint schema unchanged in R0/R1;
 - existing `handoff-in` and `handoff-out` semantics preserved;
+- legacy direct file flow may still consume an unsealed draft;
+- remote digest-bearing envelope requires a sealed checkpoint;
 - `consume` remains downgrade-first;
 - external completed claims remain historical reported findings until local re-verification;
+- sealing a PORTABLE checkpoint does not imply repository verification;
 - project mismatch remains a hard stop absent explicit verified mapping;
 - CAS/no-last-writer-wins behavior unchanged;
 - sealed checkpoint immutability unchanged.
@@ -101,7 +109,9 @@ All existing PCP/1 tests remain mandatory. Additional compatibility assertions:
 - parallel handoffs from same canonical parent;
 - stale remote handoff consumed after repository advanced;
 - session compiler asked to preserve hidden/private chain-of-thought;
-- transcript contains access token or credential-like material.
+- transcript contains access token or credential-like material;
+- producer attempts to publish a draft checkpoint with `content_digest: null` through a remote envelope;
+- producer attempts to treat `sealed + unverifiable` as verified implementation.
 
 Expected: fail closed or redact/downgrade without executing untrusted instructions.
 
@@ -111,16 +121,18 @@ PASS only if all steps can be completed from a phone-facing ChatGPT/Codex workfl
 
 1. user opens a long ChatGPT project session;
 2. says `Handoff to Codex`;
-3. no download, terminal, desktop, or manual file move is required;
-4. ChatGPT returns a compact handoff reference;
-5. user supplies reference to Codex;
-6. Codex validates envelope and artifact digests;
-7. Codex validates/maps project identity;
-8. Codex inspects current repository;
-9. Codex reconciles completion claims and planning graph;
-10. unexecuted accepted post-MVP work remains visible;
-11. Codex selects and can execute the next valid frontier;
-12. after material progress, a new checkpoint can be published;
-13. a fresh ChatGPT conversation can consume the updated project continuity without transcript replay.
+3. Session Compiler produces PORTABLE state;
+4. PORTABLE checkpoint is sealed for tamper evidence without upgrading unsupported empirical claims;
+5. no download, terminal, desktop, or manual file move is required;
+6. ChatGPT returns a compact handoff reference;
+7. user supplies reference to Codex;
+8. Codex validates envelope and artifact digests;
+9. Codex validates/maps project identity;
+10. Codex inspects current repository;
+11. Codex reconciles completion claims and planning graph;
+12. unexecuted accepted post-MVP work remains visible;
+13. Codex selects and can execute the next valid frontier;
+14. after material progress, a new checkpoint can be published;
+15. a fresh ChatGPT conversation can consume the updated project continuity without transcript replay.
 
 Any required desktop-only step is a FAIL for the mobile-first gate.
