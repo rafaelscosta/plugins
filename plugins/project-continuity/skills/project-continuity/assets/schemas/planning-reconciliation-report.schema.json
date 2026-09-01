@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/project-continuity/pcp-planning-reconciliation-report-1/planning-reconciliation-report.schema.json",
+  "title": "Project Continuity Planning Reconciliation Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "reconciliation_id",
+    "created_at",
+    "project_id",
+    "prior_planning",
+    "result_planning",
+    "transitions",
+    "frontier"
+  ],
+  "properties": {
+    "format": {"const": "pcp-planning-reconciliation-report/1"},
+    "reconciliation_id": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "format": "date-time"},
+    "project_id": {"type": "string", "minLength": 1},
+    "prior_planning": {"$ref": "#/$defs/planning_ref"},
+    "result_planning": {"$ref": "#/$defs/planning_ref"},
+    "transitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "item_id",
+          "from_status",
+          "to_status",
+          "classification",
+          "evidence_refs",
+          "repository_refs",
+          "reason"
+        ],
+        "properties": {
+          "item_id": {"type": "string", "minLength": 1},
+          "from_status": {"type": "string", "minLength": 1},
+          "to_status": {"type": "string", "minLength": 1},
+          "classification": {
+            "enum": [
+              "stale-plan",
+              "incomplete-implementation",
+              "invalidated-verification",
+              "progress-started",
+              "blocked",
+              "dependency-unblocked",
+              "dependency-still-blocked",
+              "dependency-ready",
+              "dependency-invalidated",
+              "verification-refreshed",
+              "no-change"
+            ]
+          },
+          "evidence_refs": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "uniqueItems": true
+          },
+          "repository_refs": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "uniqueItems": true
+          },
+          "reason": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "frontier": {
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["item_id", "title", "kind", "status", "priority"],
+          "properties": {
+            "item_id": {"type": "string", "minLength": 1},
+            "title": {"type": "string", "minLength": 1},
+            "kind": {"enum": ["release", "epic", "story", "task"]},
+            "status": {"enum": ["accepted", "ready", "in_progress"]},
+            "priority": {"enum": ["critical", "high", "medium", "low"]}
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "planning_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "digest"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^planning-[A-Za-z0-9._-]{8,}$"},
+        "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    }
+  }
+}
