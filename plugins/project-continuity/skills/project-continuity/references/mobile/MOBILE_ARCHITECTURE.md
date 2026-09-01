@@ -38,7 +38,7 @@ R0 ratifies the following constraints:
 ## 3. Component boundaries
 
 ### Session Compiler
-Converts available conversation context into structured state. It must distinguish proposed, accepted, superseded, planned, reported-done, and verified-done states. It never upgrades historical implementation assertions to verified completion without current hard evidence.
+Converts available conversation context into structured state. It must distinguish `proposed`, `accepted`, `superseded`, `ready`, `in_progress`, `blocked`, `reported_done`, and `verified_done`. It never upgrades historical implementation assertions to verified completion without current hard evidence.
 
 ### Planning Continuity
 Preserves the long-horizon graph that intentionally does not belong in PCP/1 `open_work`: vision, releases, epics, stories, tasks, dependencies, acceptance criteria, supersession, and execution status.
