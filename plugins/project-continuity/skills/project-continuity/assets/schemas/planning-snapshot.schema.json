@@ -99,7 +99,20 @@
             "items": {"type": "string", "minLength": 1},
             "uniqueItems": true
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {"status": {"const": "verified_done"}},
+              "required": ["status"]
+            },
+            "then": {
+              "properties": {
+                "evidence_refs": {"minItems": 1}
+              }
+            }
+          }
+        ]
       }
     },
     "decisions": {
