@@ -30,7 +30,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install validation dependencies
-        run: python -m pip install --disable-pip-version-check jsonschema pyyaml
+        run: python -m pip install --disable-pip-version-check jsonschema pyyaml pillow
 
       - name: Generate authoritative package manifest candidate
         shell: bash
