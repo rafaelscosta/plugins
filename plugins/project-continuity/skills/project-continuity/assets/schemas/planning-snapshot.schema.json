@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/project-continuity/pcp-planning-1/planning-snapshot.schema.json",
+  "title": "Project Continuity Planning Snapshot v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "planning_id",
+    "created_at",
+    "project_id",
+    "source_checkpoint",
+    "vision",
+    "items",
+    "decisions",
+    "unresolved_questions",
+    "content_digest"
+  ],
+  "properties": {
+    "format": {"const": "pcp-planning/1"},
+    "planning_id": {"type": "string", "pattern": "^planning-[A-Za-z0-9._-]{8,}$"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "project_id": {"type": "string", "minLength": 1},
+    "source_checkpoint": {
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "digest"],
+          "properties": {
+            "id": {"type": "string", "pattern": "^pcp-[A-Za-z0-9._-]{8,}$"},
+            "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+          }
+        }
+      ]
+    },
+    "vision": {"type": ["string", "null"]},
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "status",
+          "parent_id",
+          "priority",
+          "depends_on",
+          "acceptance_criteria",
+          "origin",
+          "supersedes",
+          "evidence_refs",
+          "repository_refs"
+        ],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "kind": {"enum": ["release", "epic", "story", "task"]},
+          "title": {"type": "string", "minLength": 1},
+          "status": {
+            "enum": [
+              "proposed",
+              "accepted",
+              "ready",
+              "in_progress",
+              "blocked",
+              "reported_done",
+              "verified_done",
+              "superseded",
+              "cancelled"
+            ]
+          },
+          "parent_id": {"type": ["string", "null"]},
+          "priority": {"enum": ["critical", "high", "medium", "low"]},
+          "depends_on": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "uniqueItems": true
+          },
+          "acceptance_criteria": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1}
+          },
+          "origin": {"$ref": "#/$defs/origin"},
+          "supersedes": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "uniqueItems": true
+          },
+          "evidence_refs": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "uniqueItems": true
+          },
+          "repository_refs": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "statement", "status", "origin", "supersedes"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "statement": {"type": "string", "minLength": 1},
+          "status": {"enum": ["accepted", "superseded"]},
+          "origin": {"$ref": "#/$defs/origin"},
+          "supersedes": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "unresolved_questions": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "content_digest": {
+      "anyOf": [
+        {"type": "null"},
+        {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      ]
+    }
+  },
+  "$defs": {
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "ref", "observed_at"],
+      "properties": {
+        "kind": {
+          "enum": [
+            "user_decision",
+            "sealed_checkpoint",
+            "session_compiler",
+            "repository_reconciliation",
+            "issue",
+            "pull_request",
+            "artifact",
+            "unknown"
+          ]
+        },
+        "ref": {"type": ["string", "null"]},
+        "observed_at": {"type": ["string", "null"], "format": "date-time"}
+      }
+    }
+  }
+}

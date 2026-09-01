@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/project-continuity/pcp-handoff-1/handoff-envelope.schema.json",
+  "title": "Project Continuity Handoff Envelope v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "handoff_id", "created_at", "project", "checkpoint", "planning_snapshot", "transport"],
+  "properties": {
+    "format": {"const": "pcp-handoff/1"},
+    "handoff_id": {"type": "string", "pattern": "^handoff-[A-Za-z0-9._-]{8,}$"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "repository"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "repository": {"type": ["string", "null"], "minLength": 1}
+      }
+    },
+    "checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol", "id", "digest", "location"],
+      "properties": {
+        "protocol": {"const": "pcp/1"},
+        "id": {"type": "string", "pattern": "^pcp-[A-Za-z0-9._-]{8,}$"},
+        "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "location": {"type": "string", "minLength": 1}
+      }
+    },
+    "planning_snapshot": {
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "digest", "location"],
+          "properties": {
+            "id": {"type": "string", "pattern": "^planning-[A-Za-z0-9._-]{8,}$"},
+            "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+            "location": {"type": "string", "minLength": 1}
+          }
+        }
+      ]
+    },
+    "transport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": {"enum": ["file", "github"]}
+      }
+    }
+  }
+}
