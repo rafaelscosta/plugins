@@ -133,8 +133,8 @@ Emit verified objective, surviving decisions, invalidated claims, blockers, and 
 
 Acceptance:
 - no external handoff directly promotes canonical HEAD;
-- stale todo items already implemented are not blindly repeated;
-- reported_done absent from repo reopens as incomplete implementation.
+- stale `accepted`/`ready` items already implemented are not blindly repeated;
+- `reported_done` absent from repo reopens as incomplete implementation.
 
 ## Epic E06 — Certification & Release (R6)
 
