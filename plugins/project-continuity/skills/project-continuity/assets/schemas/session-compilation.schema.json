@@ -1,0 +1,281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/project-continuity/session-compilation-1/session-compilation.schema.json",
+  "title": "Project Continuity Session Compilation IR v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "compilation_id",
+    "created_at",
+    "project",
+    "producer",
+    "prior_checkpoint",
+    "objective",
+    "decisions",
+    "findings",
+    "planning",
+    "blockers",
+    "risks",
+    "uncertainties",
+    "next_frontier"
+  ],
+  "properties": {
+    "format": {"const": "pcp-session-compilation/1"},
+    "compilation_id": {
+      "type": "string",
+      "pattern": "^compilation-[A-Za-z0-9._-]{8,}$"
+    },
+    "created_at": {"type": "string", "format": "date-time"},
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "repository"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1},
+        "repository": {"type": ["string", "null"]}
+      }
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface", "model", "session_ref"],
+      "properties": {
+        "surface": {"type": "string", "minLength": 1},
+        "model": {"type": ["string", "null"]},
+        "session_ref": {"type": ["string", "null"]}
+      }
+    },
+    "prior_checkpoint": {
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "digest"],
+          "properties": {
+            "id": {"type": "string", "pattern": "^pcp-[A-Za-z0-9._-]{8,}$"},
+            "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+          }
+        }
+      ]
+    },
+    "objective": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current", "definition_of_done"],
+      "properties": {
+        "current": {"type": "string", "minLength": 1},
+        "definition_of_done": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/decision"}
+    },
+    "findings": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/finding"}
+    },
+    "planning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["vision", "items"],
+      "properties": {
+        "vision": {"type": ["string", "null"]},
+        "items": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/planning_item"}
+        }
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/blocker"}
+    },
+    "risks": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/risk"}
+    },
+    "uncertainties": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "next_frontier": {
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["planning_item_id", "instruction", "acceptance_criteria"],
+          "properties": {
+            "planning_item_id": {"type": "string", "minLength": 1},
+            "instruction": {"type": "string", "minLength": 1},
+            "acceptance_criteria": {
+              "type": "array",
+              "minItems": 1,
+              "items": {"type": "string", "minLength": 1}
+            }
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "ref"],
+      "properties": {
+        "kind": {
+          "enum": [
+            "current_user",
+            "conversation",
+            "prior_checkpoint",
+            "repository_evidence",
+            "artifact",
+            "inference",
+            "unknown"
+          ]
+        },
+        "ref": {"type": ["string", "null"]}
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement", "status", "confidence", "origin", "supersedes"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "statement": {"type": "string", "minLength": 1},
+        "status": {"enum": ["accepted", "superseded"]},
+        "confidence": {"enum": ["reported", "inferred"]},
+        "origin": {"$ref": "#/$defs/origin"},
+        "supersedes": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement", "confidence", "origin"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "statement": {"type": "string", "minLength": 1},
+        "confidence": {"enum": ["reported", "inferred"]},
+        "origin": {"$ref": "#/$defs/origin"}
+      }
+    },
+    "planning_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "status",
+        "parent_id",
+        "priority",
+        "depends_on",
+        "acceptance_criteria",
+        "origin",
+        "supersedes",
+        "evidence_refs",
+        "repository_refs"
+      ],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["release", "epic", "story", "task"]},
+        "title": {"type": "string", "minLength": 1},
+        "status": {
+          "enum": [
+            "proposed",
+            "accepted",
+            "ready",
+            "in_progress",
+            "blocked",
+            "reported_done",
+            "verified_done",
+            "superseded",
+            "cancelled"
+          ]
+        },
+        "parent_id": {"type": ["string", "null"]},
+        "priority": {"enum": ["critical", "high", "medium", "low"]},
+        "depends_on": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "acceptance_criteria": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
+        "origin": {"$ref": "#/$defs/origin"},
+        "supersedes": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "repository_refs": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"status": {"const": "verified_done"}},
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {"evidence_refs": {"minItems": 1}}
+          }
+        }
+      ]
+    },
+    "blocker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "priority", "acceptance_criteria", "depends_on"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "title": {"type": "string", "minLength": 1},
+        "priority": {"enum": ["critical", "high", "medium", "low"]},
+        "acceptance_criteria": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        }
+      }
+    },
+    "risk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "description", "severity", "mitigation"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "description": {"type": "string", "minLength": 1},
+        "severity": {"enum": ["critical", "high", "medium", "low"]},
+        "mitigation": {"type": "string"}
+      }
+    }
+  }
+}
