@@ -10,7 +10,7 @@ Session Compiler evaluation MUST measure more than schema validity.
 - **Supersession Accuracy:** superseded/rejected decisions do not remain active.
 - **Plan Recall:** accepted releases/epics/stories/tasks retained.
 - **Open-Loop Recall:** unresolved accepted work retained across compaction.
-- **Implementation-State Accuracy:** proposed/planned/reported/verified states classified correctly.
+- **Implementation-State Accuracy:** `proposed` / `accepted` / `ready` / `in_progress` / `blocked` / `reported_done` / `verified_done` states classified correctly.
 - **Evidence Discipline:** no completion without current hard evidence.
 - **Dependency Preservation:** required ordering edges retained.
 - **Frontier Accuracy:** selected next action is accepted, unblocked, bounded, and dependency-valid.
@@ -79,7 +79,7 @@ All existing PCP/1 tests remain mandatory. Additional compatibility assertions:
 
 | Prior state | Current reality | Expected |
 |---|---|---|
-| todo | implementation verified present | stale planning -> verify/close |
+| accepted/ready | implementation verified present | stale planning -> verify/close |
 | reported_done | implementation absent | incomplete-implementation |
 | verified_done | relevant implementation changed | invalidate stale verification |
 | blocked | dependency verified complete | dependency-unblocked |
