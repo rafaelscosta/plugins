@@ -1,3 +1,4 @@
+# Stable CI gate for Project Continuity package + skill validation.
 name: Project Continuity Validation
 
 on:
