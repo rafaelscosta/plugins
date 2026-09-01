@@ -1,0 +1,87 @@
+name: Project Continuity Validation
+
+on:
+  push:
+    paths:
+      - "plugins/project-continuity/**"
+      - ".github/workflows/project-continuity-validation.yml"
+  pull_request:
+    paths:
+      - "plugins/project-continuity/**"
+      - ".github/workflows/project-continuity-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validation dependency
+        run: python -m pip install --disable-pip-version-check jsonschema
+
+      - name: Generate authoritative package manifest candidate
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+
+          root = Path("plugins/project-continuity")
+          entries = []
+          for path in sorted(root.rglob("*")):
+              if not path.is_file() or path.name == "MANIFEST.sha256":
+                  continue
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              entries.append(f"{digest}  {path.relative_to(root).as_posix()}")
+
+          candidate = "\n".join(entries) + "\n"
+          Path("/tmp/MANIFEST.generated.sha256").write_text(candidate, encoding="utf-8")
+          print("BEGIN_GENERATED_MANIFEST")
+          print(candidate, end="")
+          print("END_GENERATED_MANIFEST")
+          PY
+
+      - name: Compare authoritative package manifest
+        shell: bash
+        run: diff -u plugins/project-continuity/MANIFEST.sha256 /tmp/MANIFEST.generated.sha256
+
+      - name: Validate all Draft 2020-12 schemas
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from jsonschema import Draft202012Validator
+
+          schema_root = Path("plugins/project-continuity/skills/project-continuity/assets/schemas")
+          schemas = sorted(schema_root.glob("*.json"))
+          if not schemas:
+              raise SystemExit("No schemas found")
+          for path in schemas:
+              schema = json.loads(path.read_text(encoding="utf-8"))
+              Draft202012Validator.check_schema(schema)
+              print(f"schema-ok: {path}")
+          PY
+
+      - name: Validate plugin package
+        working-directory: plugins/project-continuity
+        run: python scripts/validate_plugin.py .
+
+      - name: Run plugin package tests
+        working-directory: plugins/project-continuity
+        run: python -m unittest discover -s tests -v
+
+      - name: Run Project Continuity skill tests
+        working-directory: plugins/project-continuity
+        run: python -m unittest discover -s skills/project-continuity/tests -v
