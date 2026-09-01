@@ -123,11 +123,11 @@ The compiler may recommend a next frontier only from accepted work whose depende
 A conforming compiler must correctly handle at least:
 
 1. proposal A rejected, B accepted;
-2. B1-B10 planned, B1-B3 executed, B4 claimed done without evidence;
+2. B1-B10 accepted in the roadmap, B1-B3 executed, B4 claimed done without evidence;
 3. later user supersedes an earlier architecture decision;
 4. multiple epics with dependency edges;
 5. a session ending at MVP while post-MVP accepted stories remain;
-6. a newer repository state implementing work marked todo in the old plan;
+6. a newer repository state implementing work marked `accepted`/`ready` in the old plan;
 7. contradictory completion claims from parallel agents;
 8. unavailable historical context without inventing missing state;
 9. sensitive material that must not be copied into handoff artifacts.
