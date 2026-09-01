@@ -256,7 +256,7 @@ def reconciliation_request(
     }
     return {
         "format": "pcp-planning-reconciliation/1",
-        "reconciliation_id": "reconcile-r5-0001",
+        "reconciliation_id": "reconcile-r5-00001",
         "created_at": "2026-09-01T15:05:00Z",
         "project_id": plan["project_id"],
         "planning_id": plan["planning_id"],
@@ -537,7 +537,7 @@ class ResumeResolverTests(unittest.TestCase):
         }
         dummy = {
             "format": "pcp-planning-reconciliation/1",
-            "reconciliation_id": "reconcile-r5-0001",
+            "reconciliation_id": "reconcile-r5-00001",
             "created_at": "2026-09-01T15:05:00Z",
             "project_id": "git-demo-project",
             "planning_id": "planning-missing-001",
