@@ -2,9 +2,10 @@
 """Supported CLI facade for bootstrap and incremental Session Compiler workflows.
 
 Semantic extraction produces ``pcp-session-compilation/1`` IR. This facade is
-the supported compiler entrypoint: it merges prior planning when present,
-performs cross-record validations that JSON Schema cannot express, and only then
-delegates deterministic PCP/planning compilation to ``session_compiler.py``.
+the supported compiler entrypoint: it verifies inherited planning integrity,
+merges prior planning when present, enforces cross-record invariants that JSON
+Schema cannot express, and only then delegates deterministic PCP/planning
+compilation to ``session_compiler.py``.
 """
 
 from __future__ import annotations
@@ -33,6 +34,85 @@ COMPILER = _load("pcp_session_compile_core", "session_compiler.py")
 MERGE = _load("pcp_session_compile_merge", "planning_merge.py")
 
 
+def validate_prior_planning_integrity(prior: dict[str, Any]) -> None:
+    """Verify prior planning structure and canonical digest before incremental merge."""
+    errors = COMPILER.BUNDLE.validate_planning_snapshot(prior)
+    if errors:
+        raise MERGE.PlanningMergeError(
+            "Invalid prior planning snapshot:\n- " + "\n- ".join(errors)
+        )
+    recorded_digest = prior.get("content_digest")
+    if not isinstance(recorded_digest, str) or not recorded_digest:
+        raise MERGE.PlanningMergeError(
+            "Prior planning snapshot must carry a canonical content_digest"
+        )
+    computed_digest = COMPILER.BUNDLE.compute_planning_digest(prior)
+    if recorded_digest != computed_digest:
+        raise MERGE.PlanningMergeError(
+            "Prior planning snapshot content_digest does not match its canonical bytes"
+        )
+
+
+def _validate_reference_graph(
+    records: list[dict[str, Any]],
+    *,
+    id_field: str,
+    edge_field: str,
+    label: str,
+) -> None:
+    """Reject unknown, self-referential, or cyclic ID edges in one record set."""
+    ids = {
+        record.get(id_field)
+        for record in records
+        if isinstance(record, dict) and isinstance(record.get(id_field), str)
+    }
+    graph: dict[str, list[str]] = {}
+    for record in records:
+        if not isinstance(record, dict) or not isinstance(record.get(id_field), str):
+            continue
+        record_id = record[id_field]
+        raw_edges = record.get(edge_field)
+        if not isinstance(raw_edges, list):
+            continue
+        edges = [edge for edge in raw_edges if isinstance(edge, str)]
+        unknown = [edge for edge in edges if edge not in ids]
+        if unknown:
+            raise COMPILER.SessionCompilationError(
+                f"{label} {record_id!r} references unknown {edge_field}: "
+                + ", ".join(sorted(unknown))
+            )
+        if record_id in edges:
+            raise COMPILER.SessionCompilationError(
+                f"{label} {record_id!r} cannot reference itself via {edge_field}"
+            )
+        graph[record_id] = edges
+
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(node: str, trail: list[str]) -> None:
+        """Depth-first cycle check for one ID reference graph."""
+        if node in visited:
+            return
+        if node in visiting:
+            if node in trail:
+                start = trail.index(node)
+                cycle = trail[start:] + [node]
+            else:
+                cycle = trail + [node]
+            raise COMPILER.SessionCompilationError(
+                f"{label} {edge_field} cycle: " + " -> ".join(cycle)
+            )
+        visiting.add(node)
+        for dependency in graph.get(node, []):
+            visit(dependency, trail + [node])
+        visiting.remove(node)
+        visited.add(node)
+
+    for record_id in sorted(graph):
+        visit(record_id, [])
+
+
 def validate_blocker_dependencies(source: dict[str, Any]) -> None:
     """Reject unknown or cyclic blocker dependencies before PCP conversion.
 
@@ -43,60 +123,112 @@ def validate_blocker_dependencies(source: dict[str, Any]) -> None:
     blockers = source.get("blockers")
     if not isinstance(blockers, list):
         return
+    _validate_reference_graph(
+        blockers,
+        id_field="id",
+        edge_field="depends_on",
+        label="Blocker",
+    )
 
-    blocker_ids = {
-        blocker.get("id")
-        for blocker in blockers
-        if isinstance(blocker, dict) and isinstance(blocker.get("id"), str)
+
+def validate_supersession_references(source: dict[str, Any]) -> None:
+    """Ensure decision/planning supersession edges point to known current state."""
+    decisions = source.get("decisions")
+    if isinstance(decisions, list):
+        _validate_reference_graph(
+            decisions,
+            id_field="id",
+            edge_field="supersedes",
+            label="Decision",
+        )
+
+    planning = source.get("planning")
+    if isinstance(planning, dict):
+        items = planning.get("items")
+        if isinstance(items, list):
+            _validate_reference_graph(
+                items,
+                id_field="id",
+                edge_field="supersedes",
+                label="Planning item",
+            )
+
+
+def normalize_pcp_decision_supersedes(
+    checkpoint: dict[str, Any],
+    source: dict[str, Any],
+) -> None:
+    """Translate IR decision IDs to the PCP claim IDs emitted for those decisions."""
+    decisions = source.get("decisions")
+    if not isinstance(decisions, list):
+        return
+    claim_id_by_decision_id = {
+        decision["id"]: f"SC-D-{index:03d}"
+        for index, decision in enumerate(decisions, start=1)
+        if isinstance(decision, dict) and isinstance(decision.get("id"), str)
     }
-    graph: dict[str, list[str]] = {}
-    for blocker in blockers:
-        if not isinstance(blocker, dict) or not isinstance(blocker.get("id"), str):
+    claims = checkpoint.get("claims")
+    if not isinstance(claims, list):
+        return
+    for index, decision in enumerate(decisions, start=1):
+        if not isinstance(decision, dict):
             continue
-        blocker_id = blocker["id"]
-        dependencies = blocker.get("depends_on")
-        if not isinstance(dependencies, list):
+        target_claim_id = f"SC-D-{index:03d}"
+        claim = next(
+            (
+                candidate
+                for candidate in claims
+                if isinstance(candidate, dict)
+                and candidate.get("id") == target_claim_id
+            ),
+            None,
+        )
+        if claim is None:
+            raise COMPILER.SessionCompilationError(
+                f"Compiler did not emit expected PCP decision claim {target_claim_id}"
+            )
+        supersedes = decision.get("supersedes")
+        if not isinstance(supersedes, list):
             continue
-        unknown = [
-            dependency
-            for dependency in dependencies
-            if isinstance(dependency, str) and dependency not in blocker_ids
-        ]
-        if unknown:
-            raise COMPILER.SessionCompilationError(
-                f"Blocker {blocker_id!r} references unknown blocker dependencies: "
-                + ", ".join(sorted(unknown))
-            )
-        graph[blocker_id] = [
-            dependency
-            for dependency in dependencies
-            if isinstance(dependency, str)
+        claim["supersedes"] = [
+            claim_id_by_decision_id[decision_id]
+            for decision_id in supersedes
         ]
 
-    visiting: set[str] = set()
-    visited: set[str] = set()
 
-    def visit(node: str, trail: list[str]) -> None:
-        """Depth-first cycle check for the blocker dependency graph."""
-        if node in visited:
-            return
-        if node in visiting:
-            if node in trail:
-                start = trail.index(node)
-                cycle = trail[start:] + [node]
-            else:
-                cycle = trail + [node]
-            raise COMPILER.SessionCompilationError(
-                "Blocker dependency cycle: " + " -> ".join(cycle)
-            )
-        visiting.add(node)
-        for dependency in graph.get(node, []):
-            visit(dependency, trail + [node])
-        visiting.remove(node)
-        visited.add(node)
+def refresh_digests_after_normalization(
+    checkpoint: dict[str, Any],
+    planning: dict[str, Any],
+) -> None:
+    """Refresh canonical digests after deterministic post-compilation normalization."""
+    verification = checkpoint.get("verification")
+    if not isinstance(verification, dict) or verification.get("status") != "sealed":
+        return
 
-    for blocker_id in sorted(graph):
-        visit(blocker_id, [])
+    verification["content_digest"] = None
+    verification["content_digest"] = COMPILER.PCP.compute_content_digest(checkpoint)
+    checkpoint_errors = COMPILER.PCP.validate_checkpoint(
+        checkpoint,
+        expect_sealed=True,
+    )
+    if checkpoint_errors:
+        raise COMPILER.SessionCompilationError(
+            "Normalized sealed checkpoint is invalid:\n- "
+            + "\n- ".join(checkpoint_errors)
+        )
+
+    planning["source_checkpoint"] = {
+        "id": checkpoint["checkpoint_id"],
+        "digest": verification["content_digest"],
+    }
+    planning["content_digest"] = None
+    planning_errors = COMPILER.BUNDLE.validate_planning_snapshot(planning)
+    if planning_errors:
+        raise COMPILER.SessionCompilationError(
+            "Normalized planning snapshot is invalid:\n- "
+            + "\n- ".join(planning_errors)
+        )
+    planning["content_digest"] = COMPILER.BUNDLE.compute_planning_digest(planning)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -131,14 +263,21 @@ def main(argv: list[str] | None = None) -> int:
         mode = "bootstrap"
         if args.prior_planning:
             prior = COMPILER.read_json(pathlib.Path(args.prior_planning))
+            validate_prior_planning_integrity(prior)
             source = MERGE.merge_compilation_with_prior(source, prior)
             mode = "incremental"
+
         validate_blocker_dependencies(source)
+        validate_supersession_references(source)
+
         checkpoint, planning = COMPILER.compile_session(
             source,
             seal_portable=bool(args.seal_portable),
             sealed_at=args.sealed_at,
         )
+        normalize_pcp_decision_supersedes(checkpoint, source)
+        refresh_digests_after_normalization(checkpoint, planning)
+
         COMPILER.atomic_write_json(
             pathlib.Path(args.checkpoint_out),
             checkpoint,
