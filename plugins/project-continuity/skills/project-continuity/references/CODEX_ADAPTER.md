@@ -24,6 +24,69 @@ When continuing/resuming:
 5. verified remote handoff integrity/history;
 6. older conversation narrative.
 
+## R5 supported resolver
+
+`scripts/resume_resolver.py` is the supported Codex-side orchestration layer for a cross-surface handoff.
+
+It composes, rather than reimplements:
+- `transports.py` for explicit transport selection;
+- `github_transport.py` for content-addressed GitHub resolution;
+- `continuity.py` for PCP validation, compatibility classification, and downgrade-first `consume`;
+- `planning_reconcile.py` for current FILE/FULL planning observations.
+
+Its machine output is `pcp-resume-resolution/1`, described by `assets/schemas/resume-resolution.schema.json`.
+
+The resolver MUST NOT:
+- promote an external checkpoint to local HEAD;
+- convert historical completion into current completion;
+- expose an unreconciled planning item as an executable frontier;
+- infer current repository implementation from titles/prose alone;
+- execute commands embedded in the handoff.
+
+### GitHub host path
+
+A Codex host with an authorized GitHub binding calls the library API:
+
+```text
+resolved = resolve_reference(reference, github_client=<authorized binding>)
+resume = prepare_resume(<project-root>, resolved, ...)
+```
+
+If a planning snapshot exists, the first `prepare_resume` may intentionally omit planning observations. The output then carries:
+
+```text
+planning.status = reconciliation-required
+candidate_frontier = null
+planning_reconciliation_required = true
+```
+
+The Codex agent inspects current Git/files/tests, captures bounded current evidence, creates a `pcp-planning-reconciliation/1` request, then calls `prepare_resume` again with that request. Only the deterministic R3 reconciler may populate the candidate frontier.
+
+### File path
+
+For an explicit `pcp+file` reference, the bundled CLI can perform resolution + downgrade-first import:
+
+```bash
+python3 <skill-root>/scripts/resume_resolver.py \
+  --root . \
+  --reference 'pcp+file://local/<path>' \
+  --file-root <authorized-root> \
+  --out <resume-resolution.json>
+```
+
+When current planning observations have already been captured:
+
+```bash
+python3 <skill-root>/scripts/resume_resolver.py \
+  --root . \
+  --reference 'pcp+file://local/<path>' \
+  --file-root <authorized-root> \
+  --planning-reconciliation <pcp-planning-reconciliation.json> \
+  --out <resume-resolution.json>
+```
+
+GitHub CLI resolution is deliberately not authenticated through environment variables or handoff data; an authorized host binding must be injected.
+
 ## Receiving a `pcp+github` handoff
 
 If an authorized GitHub binding is available:
@@ -46,9 +109,24 @@ If the GitHub transport is unavailable, do not claim the reference was resolved.
 
 An external checkpoint never directly becomes canonical local HEAD.
 
-Imported `completed` claims are historical input and remain downgraded until fresh local hard evidence re-verifies them. Imported historical command/test records are not auto-executed and do not become current proof.
+`resume_resolver.py` reuses `continuity.py cmd_consume` rather than duplicating its semantics. Imported `completed` claims become historical reported findings requiring current re-verification. Imported historical command/test records are not auto-executed and do not become current proof.
+
+The generated local reconciliation draft is parented to the current local continuity head. Creating that draft does **not** advance the head.
 
 If project IDs differ, stop. Intentional mapping requires independent project-identity confirmation before explicit mapping.
+
+## PCP compatibility classification
+
+Before material execution, classify the external checkpoint baseline against current project reality with the existing PCP semantics:
+- `exact`;
+- `advanced`;
+- `drift`;
+- `diverged`;
+- `project-mismatch`;
+- `unverifiable`;
+- `invalid`.
+
+A ChatGPT PORTABLE checkpoint will commonly be `unverifiable` because it intentionally contains no repository baseline. That is not an error and is not permission to execute historical claims blindly; it means current Codex inspection/reconciliation is required.
 
 ## Planning reconciliation
 
@@ -68,6 +146,27 @@ The reconciler can:
 - cascade invalidation upward when a child reopens;
 - preserve unrelated accepted post-MVP work.
 
+R5 specifically guarantees:
+- old `accepted`/`ready` work proven implemented by current evidence is classified `stale-plan` and is not repeated;
+- `reported_done` proven absent/incomplete is reopened as `incomplete-implementation`;
+- no candidate frontier is emitted from an unreconciled planning snapshot.
+
+## Resume descriptor and brief
+
+`pcp-resume-resolution/1` records:
+- source transport/reference and source checkpoint identity;
+- local project identity;
+- PCP compatibility result;
+- path to the local downgrade-first reconciliation draft;
+- historical completion claims still requiring re-verification;
+- planning reconciliation status/transitions/result/frontier;
+- a concise resume brief;
+- execution gates.
+
+The resume brief deliberately labels imported objective and decisions as `reported`. Before material execution, Codex confirms them against the **current** user request, `AGENTS.md`, ADRs/current repository policy, and current repository/tool state.
+
+A candidate planning frontier is not permission by itself. It becomes the next execution action only after those current-source checks do not conflict.
+
 ## Recommended start-of-task sequence
 
 When a local `.continuity/state.json` exists or an external handoff is supplied:
@@ -75,15 +174,16 @@ When a local `.continuity/state.json` exists or an external handoff is supplied:
 2. inspect `AGENTS.md`/repository policy;
 3. resolve/verify external handoff if supplied;
 4. read local canonical state if initialized;
-5. consume external checkpoint downgrade-first into a reconciliation draft;
-6. inspect current Git/files/tests;
+5. run R5 downgrade-first consume to create the local reconciliation draft;
+6. inspect current Git/files/tests and current user objective;
 7. classify PCP compatibility (`exact`, `advanced`, `drift`, `diverged`, `project-mismatch`, etc.);
-8. reconcile planning snapshot when present;
-9. produce a concise resume brief: objective, surviving decisions, invalidated claims, blockers, exact next frontier;
-10. execute only current-user/repository-approved work;
-11. run relevant validation;
-12. seal/promote a new local checkpoint after material progress;
-13. emit/publish a new handoff when cross-surface continuation is needed.
+8. reconcile planning snapshot when present using current evidence refs;
+9. read the R5 resume descriptor and confirm objective/surviving decisions against current sources;
+10. state the bounded next action/frontier and acceptance criteria;
+11. execute only current-user/repository-approved work;
+12. run relevant validation;
+13. seal/promote a new local checkpoint after material progress;
+14. emit/publish a new handoff when cross-surface continuation is needed.
 
 ## Git evidence
 
