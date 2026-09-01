@@ -47,7 +47,7 @@ Allowed planning statuses:
 
 Semantics:
 - `reported_done` means historical/user/agent assertion without current hard evidence;
-- `verified_done` requires a bounded verification reference appropriate to the current capable surface;
+- `verified_done` requires at least one bounded evidence reference and later semantic validation that the referenced evidence is sufficient for the claim;
 - silence in a later session does not change an accepted unfinished item to cancelled/superseded;
 - only an explicit decision or reconciled evidence may close/remove accepted work.
 
@@ -59,16 +59,19 @@ Each executable item contains:
 - `title`
 - `status`
 - `parent_id` where applicable
+- `priority`
 - `depends_on`
 - `acceptance_criteria`
 - `origin`
 - `supersedes`
+- `evidence_refs`
+- `repository_refs`
 
-Optional fields include priority, rationale, repository references, evidence references, and notes.
+Arrays may be empty when no dependency/evidence/repository reference exists. `evidence_refs` MUST be non-empty for `verified_done`.
 
 ## Origin/provenance
 
-`origin` should identify the source category without storing transcript dumps. Examples:
+`origin` identifies the source category without storing transcript dumps. Examples:
 - current user decision;
 - prior sealed checkpoint;
 - imported session compiler result;
@@ -80,7 +83,7 @@ Optional fields include priority, rationale, repository references, evidence ref
 Planning state must be reconciled against current repository state before execution when a capable consumer exists.
 
 Examples:
-- plan says `todo`, repository proves implementation exists -> classify stale planning state and re-verify before `verified_done`;
+- plan says `accepted` or `ready`, repository proves implementation exists -> classify stale planning state and re-verify before `verified_done`;
 - plan says `reported_done`, implementation absent -> classify incomplete implementation and reopen work;
 - plan says `verified_done`, relevant implementation changed -> invalidate stale verification and re-test/reconcile;
 - dependency completed by later work -> unblock dependents;
