@@ -11,7 +11,8 @@ A conversation is a source of project-state events, not the project container. T
 ```text
 ChatGPT conversation
   -> Session Compiler
-  -> PCP/1 portable checkpoint + planning snapshot
+  -> PCP/1 portable checkpoint candidate + planning snapshot
+  -> seal portable checkpoint for remote envelope
   -> Handoff Envelope
   -> Transport (file | github | future remote)
   -> Continuity Resolver
@@ -33,18 +34,19 @@ R0 ratifies the following constraints:
 7. Repository/current-tool reality outranks historical handoff narrative.
 8. No essential mobile handoff operation may require terminal, desktop, or manual file movement.
 9. No runtime may silently publish potentially sensitive continuity state to a public destination.
-10. PCP/2 is deferred until an incompatible canonical-state semantic change is demonstrated necessary.
+10. A checkpoint referenced by a digest-bearing remote envelope must be sealed; a PORTABLE seal provides tamper evidence only and does not upgrade empirical confidence or repository verification.
+11. PCP/2 is deferred until an incompatible canonical-state semantic change is demonstrated necessary.
 
 ## 3. Component boundaries
 
 ### Session Compiler
-Converts available conversation context into structured state. It must distinguish `proposed`, `accepted`, `superseded`, `ready`, `in_progress`, `blocked`, `reported_done`, and `verified_done`. It never upgrades historical implementation assertions to verified completion without current hard evidence.
+Converts available conversation context into structured state. It must distinguish `proposed`, `accepted`, `superseded`, `ready`, `in_progress`, `blocked`, `reported_done`, and `verified_done`. It never upgrades historical implementation assertions to verified completion without current hard evidence. For remote publication, the resulting PORTABLE checkpoint is sealed according to PCP/1 canonical-digest rules while remaining `surface_status: unverifiable` when repository truth cannot be checked.
 
 ### Planning Continuity
 Preserves the long-horizon graph that intentionally does not belong in PCP/1 `open_work`: vision, releases, epics, stories, tasks, dependencies, acceptance criteria, supersession, and execution status.
 
 ### Handoff Envelope
-Binds references and digests for the checkpoint and optional planning snapshot. It describes how a consumer can resolve the handoff but cannot elevate claims or override PCP/repository policy.
+Binds references and digests for the sealed checkpoint and optional planning snapshot. It describes how a consumer can resolve the handoff but cannot elevate claims or override PCP/repository policy.
 
 ### Transport Layer
 Moves or resolves envelope/bundle bytes. Initial adapters are `file` and `github`; future remote transports must satisfy the same publish/resolve/fetch/verify contract.
@@ -55,7 +57,8 @@ Parses a handoff reference, resolves the transport, verifies digests/project ide
 ## 4. Trust boundaries
 
 - Conversation text: untrusted historical source.
-- PCP portable checkpoint: compact state, not repository authority.
+- PCP portable checkpoint candidate: compact state, not repository authority.
+- Sealed PORTABLE PCP checkpoint: tamper-evident historical state, still not repository authority when `surface_status` is `unverifiable`.
 - Planning snapshot: planning memory, not implementation proof.
 - Envelope: routing/integrity metadata, not authority.
 - Remote transport: untrusted storage until bytes and digests are verified.
@@ -68,16 +71,17 @@ No embedded command is executed merely because it appears in any handoff artifac
 A compliant implementation must support this E2E path:
 
 1. On iPhone, user says `Handoff to Codex` in ChatGPT.
-2. Session Compiler produces valid portable state and planning snapshot.
-3. A configured remote transport publishes the bundle without user file handling.
-4. ChatGPT returns a compact handoff reference.
-5. User opens Codex on mobile and supplies that reference.
-6. Codex resolves and verifies the handoff.
-7. Codex checks project identity and current repository state.
-8. Historical completion claims remain reported until re-verified locally.
-9. Codex reconciles stale/advanced/drift/diverged planning and implementation state.
-10. Codex resumes the highest-value executable frontier.
-11. After material progress, Codex emits a new checkpoint/handoff that can be consumed by a fresh ChatGPT conversation.
+2. Session Compiler produces valid PORTABLE state and planning snapshot.
+3. The PORTABLE checkpoint is sealed for integrity with `surface_status: unverifiable` when ChatGPT cannot inspect repository reality; no historical empirical claim is upgraded.
+4. A configured remote transport publishes the envelope/bundle without user file handling.
+5. ChatGPT returns a compact handoff reference.
+6. User opens Codex on mobile and supplies that reference.
+7. Codex resolves and verifies the handoff.
+8. Codex checks project identity and current repository state.
+9. Historical completion claims remain reported until re-verified locally.
+10. Codex reconciles stale/advanced/drift/diverged planning and implementation state.
+11. Codex resumes the highest-value executable frontier.
+12. After material progress, Codex emits a new checkpoint/handoff that can be consumed by a fresh ChatGPT conversation.
 
 ## 6. Release sequence
 
@@ -95,4 +99,4 @@ Do not add a custom backend, database, event-sourcing system, CRDT, vector store
 
 ## 8. Protocol-version decision
 
-PCP/1 already permits standalone PORTABLE checkpoints and defines extensions separately from canonical state. Therefore the first mobile-first release MUST remain PCP/1 compatible. Introduce PCP/2 only if planning graphs, multi-parent lineage, remote identity, or other semantics must become part of canonical checkpoint state in a way PCP/1 consumers cannot safely ignore.
+PCP/1 already permits standalone PORTABLE checkpoints and distinguishes seal integrity from project-verification capability. Therefore the first mobile-first release MUST remain PCP/1 compatible. Introduce PCP/2 only if planning graphs, multi-parent lineage, remote identity, or other semantics must become part of canonical checkpoint state in a way PCP/1 consumers cannot safely ignore.
