@@ -1,0 +1,405 @@
+{
+  "format": "pcp-session-compiler-evals/1",
+  "fixtures": [
+    {
+      "id": "simple-handoff",
+      "transcript": "User accepted a mobile continuity implementation and chose one concrete task as the next frontier. Nothing is yet verified in the repository.",
+      "mode": "bootstrap",
+      "current": {
+        "decisions": [
+          {"id": "dec-mobile", "statement": "Use mobile continuity handoff.", "status": "accepted"}
+        ],
+        "items": [
+          {"id": "rel-main", "kind": "release", "status": "accepted"},
+          {"id": "epic-main", "kind": "epic", "status": "accepted", "parent_id": "rel-main"},
+          {"id": "story-main", "kind": "story", "status": "accepted", "parent_id": "epic-main"},
+          {"id": "task-next", "kind": "task", "status": "ready", "parent_id": "story-main", "priority": "critical"}
+        ],
+        "next_frontier": "task-next"
+      },
+      "expected": {
+        "decision_statuses": {"dec-mobile": "accepted"},
+        "item_statuses": {"task-next": "ready"},
+        "preserved_item_ids": ["rel-main", "epic-main", "story-main", "task-next"],
+        "depends_on": {"task-next": []},
+        "frontier": "task-next",
+        "forbid_completed_claims": true,
+        "must_not_contain": [],
+        "surface_status": "unverifiable"
+      }
+    },
+    {
+      "id": "superseded-decisions",
+      "transcript": "An older file-only decision was explicitly superseded by the accepted GitHub transport decision. The replacement is binding.",
+      "mode": "bootstrap",
+      "current": {
+        "decisions": [
+          {"id": "dec-file", "statement": "Use only file transfer.", "status": "superseded"},
+          {"id": "dec-github", "statement": "Use GitHub transport.", "status": "accepted", "supersedes": ["dec-file"]}
+        ],
+        "items": [
+          {"id": "story-transport", "kind": "story", "status": "accepted"},
+          {"id": "task-transport", "kind": "task", "status": "ready", "parent_id": "story-transport"}
+        ],
+        "next_frontier": "task-transport"
+      },
+      "expected": {
+        "decision_statuses": {"dec-file": "superseded", "dec-github": "accepted"},
+        "item_statuses": {"task-transport": "ready"},
+        "preserved_item_ids": ["story-transport", "task-transport"],
+        "depends_on": {"task-transport": []},
+        "frontier": "task-transport",
+        "forbid_completed_claims": true,
+        "must_not_contain": [],
+        "surface_status": "unverifiable"
+      }
+    },
+    {
+      "id": "long-roadmap",
+      "transcript": "The accepted roadmap contains a release, an epic, two stories and three concrete tasks. Only task-one is the current frontier; the later work must not disappear.",
+      "mode": "bootstrap",
+      "current": {
+        "items": [
+          {"id": "rel-roadmap", "kind": "release", "status": "accepted"},
+          {"id": "epic-roadmap", "kind": "epic", "status": "accepted", "parent_id": "rel-roadmap"},
+          {"id": "story-one", "kind": "story", "status": "accepted", "parent_id": "epic-roadmap"},
+          {"id": "task-one", "kind": "task", "status": "ready", "parent_id": "story-one", "priority": "critical"},
+          {"id": "task-two", "kind": "task", "status": "accepted", "parent_id": "story-one"},
+          {"id": "story-later", "kind": "story", "status": "accepted", "parent_id": "epic-roadmap", "priority": "medium"},
+          {"id": "task-later", "kind": "task", "status": "accepted", "parent_id": "story-later", "priority": "medium"}
+        ],
+        "next_frontier": "task-one"
+      },
+      "expected": {
+        "decision_statuses": {},
+        "item_statuses": {"task-one": "ready", "task-two": "accepted", "story-later": "accepted", "task-later": "accepted"},
+        "preserved_item_ids": ["rel-roadmap", "epic-roadmap", "story-one", "task-one", "task-two", "story-later", "task-later"],
+        "depends_on": {"task-one": []},
+        "frontier": "task-one",
+        "forbid_completed_claims": true,
+        "must_not_contain": [],
+        "surface_status": "unverifiable"
+      }
+    },
+    {
+      "id": "partial-implementation",
+      "transcript": "Task A was verified with evidence. Task B is already in progress and depends on Task A. The handoff must preserve that distinction.",
+      "mode": "bootstrap",
+      "current": {
+        "items": [
+          {"id": "story-partial", "kind": "story", "status": "accepted"},
+          {"id": "task-a", "kind": "task", "status": "verified_done", "parent_id": "story-partial", "evidence_refs": ["evidence:task-a"]},
+          {"id": "task-b", "kind": "task", "status": "in_progress", "parent_id": "story-partial", "depends_on": ["task-a"], "priority": "critical"}
+        ],
+        "next_frontier": "task-b"
+      },
+      "expected": {
+        "decision_statuses": {},
+        "item_statuses": {"task-a": "verified_done", "task-b": "in_progress"},
+        "preserved_item_ids": ["story-partial", "task-a", "task-b"],
+        "depends_on": {"task-b": ["task-a"]},
+        "frontier": "task-b",
+        "forbid_completed_claims": true,
+        "must_not_contain": [],
+        "surface_status": "unverifiable"
+      }
+    },
+    {
+      "id": "false-done-claim",
+      "transcript": "The conversation says the implementation is done, but there is no current repository evidence. Treat that as reported_done, not verified completion.",
+      "mode": "bootstrap",
+      "current": {
+        "findings": [
+          {"id": "finding-done", "statement": "The prior session reported the implementation complete.", "confidence": "reported"}
+        ],
+        "items": [
+          {"id": "story-false-done", "kind": "story", "status": "reported_done"}
+        ],
+        "next_frontier": null
+      },
+      "expected": {
+        "decision_statuses": {},
+        "item_statuses": {"story-false-done": "reported_done"},
+        "preserved_item_ids": ["story-false-done"],
+        "depends_on": {},
+        "frontier": null,
+        "forbid_completed_claims": true,
+        "must_not_contain": [],
+        "surface_status": "unverifiable"
+      }
+    },
+    {
+      "id": "multiple-epics",
+      "transcript": "Two accepted epics remain active. The critical task in Epic A is next, while Epic B remains accepted future work.",
+      "mode": "bootstrap",
+      "current": {
+        "items": [
+          {"id": "rel-multi", "kind": "release", "status": "accepted"},
+          {"id": "epic-a", "kind": "epic", "status": "accepted", "parent_id": "rel-multi"},
+          {"id": "task-a1", "kind": "task", "status": "ready", "parent_id": "epic-a", "priority": "critical"},
+          {"id": "epic-b", "kind": "epic", "status": "accepted", "parent_id": "rel-multi", "priority": "medium"},
+          {"id": "task-b1", "kind": "task", "status": "accepted", "parent_id": "epic-b", "priority": "medium"}
+        ],
+        "next_frontier": "task-a1"
+      },
+      "expected": {
+        "decision_statuses": {},
+        "item_statuses": {"task-a1": "ready", "epic-b": "accepted", "task-b1": "accepted"},
+        "preserved_item_ids": ["epic-a", "task-a1", "epic-b", "task-b1"],
+        "depends_on": {"task-a1": []},
+        "frontier": "task-a1",
+        "forbid_completed_claims": true,
+        "must_not_contain": [],
+        "surface_status": "unverifiable"
+      }
+    },
+    {
+      "id": "parallel-agent-work",
+      "transcript": "Two delegated agent tasks are independently in progress. Neither should overwrite or cancel the other and no arbitrary single frontier is asserted.",
+      "mode": "bootstrap",
+      "current": {
+        "items": [
+          {"id": "story-parallel", "kind": "story", "status": "in_progress"},
+          {"id": "task-terra", "kind": "task", "status": "in_progress", "parent_id": "story-parallel"},
+          {"id": "task-luna", "kind": "task", "status": "in_progress", "parent_id": "story-parallel"}
+        ],
+        "next_frontier": null
+      },
+      "expected": {
+        "decision_statuses": {},
+        "item_statuses": {"task-terra": "in_progress", "task-luna": "in_progress"},
+        "preserved_item_ids": ["task-terra", "task-luna"],
+        "depends_on": {},
+        "frontier": null,
+        "forbid_completed_claims": true,
+        "must_not_contain": [],
+        "surface_status": "unverifiable"
+      }
+    },
+    {
+      "id": "conflicting-decisions",
+      "transcript": "The session contains two conflicting architecture decisions. The newer accepted decision explicitly supersedes the older one.",
+      "mode": "bootstrap",
+      "current": {
+        "decisions": [
+          {"id": "dec-old-arch", "statement": "Use a mutable latest-state file.", "status": "superseded"},
+          {"id": "dec-new-arch", "statement": "Use immutable content-addressed artifacts.", "status": "accepted", "supersedes": ["dec-old-arch"]}
+        ],
+        "items": [
+          {"id": "task-arch", "kind": "task", "status": "ready", "priority": "critical"}
+        ],
+        "next_frontier": "task-arch"
+      },
+      "expected": {
+        "decision_statuses": {"dec-old-arch": "superseded", "dec-new-arch": "accepted"},
+        "item_statuses": {"task-arch": "ready"},
+        "preserved_item_ids": ["task-arch"],
+        "depends_on": {},
+        "frontier": "task-arch",
+        "forbid_completed_claims": true,
+        "must_not_contain": [],
+        "surface_status": "unverifiable"
+      }
+    },
+    {
+      "id": "ambiguous-project",
+      "transcript": "The conversation may refer to the intended project, but repository identity is unavailable on this surface. Preserve uncertainty and do not invent repository proof.",
+      "mode": "bootstrap",
+      "current": {
+        "repository": null,
+        "items": [
+          {"id": "story-ambiguous", "kind": "story", "status": "accepted"}
+        ],
+        "uncertainties": ["Repository identity must be confirmed by the receiving surface."],
+        "next_frontier": null
+      },
+      "expected": {
+        "decision_statuses": {},
+        "item_statuses": {"story-ambiguous": "accepted"},
+        "preserved_item_ids": ["story-ambiguous"],
+        "depends_on": {},
+        "frontier": null,
+        "forbid_completed_claims": true,
+        "must_not_contain": [],
+        "surface_status": "unverifiable"
+      }
+    },
+    {
+      "id": "sensitive-content",
+      "transcript": "A pasted diagnostic contained access_token=ghp_123456789012345678901234567890. The continuity state must not preserve that credential; only the fact that sensitive material was excluded is relevant.",
+      "mode": "bootstrap",
+      "current": {
+        "findings": [
+          {"id": "finding-redaction", "statement": "Sensitive credential material was excluded from durable continuity state.", "confidence": "reported"}
+        ],
+        "items": [
+          {"id": "story-sensitive", "kind": "story", "status": "accepted"}
+        ],
+        "next_frontier": null
+      },
+      "expected": {
+        "decision_statuses": {},
+        "item_statuses": {"story-sensitive": "accepted"},
+        "preserved_item_ids": ["story-sensitive"],
+        "depends_on": {},
+        "frontier": null,
+        "forbid_completed_claims": true,
+        "must_not_contain": ["ghp_123456789012345678901234567890", "access_token="],
+        "surface_status": "unverifiable"
+      }
+    },
+    {
+      "id": "long-session-compaction",
+      "transcript_repeat": {
+        "text": "Repeated exploratory discussion, rejected wording, intermediate reasoning and duplicated context that should not be copied into the executable handoff. ",
+        "count": 600
+      },
+      "mode": "bootstrap",
+      "current": {
+        "decisions": [
+          {"id": "dec-compact", "statement": "Preserve only accepted project state, not transcript replay.", "status": "accepted"}
+        ],
+        "items": [
+          {"id": "task-compact", "kind": "task", "status": "ready", "priority": "critical"}
+        ],
+        "next_frontier": "task-compact"
+      },
+      "expected": {
+        "decision_statuses": {"dec-compact": "accepted"},
+        "item_statuses": {"task-compact": "ready"},
+        "preserved_item_ids": ["task-compact"],
+        "depends_on": {},
+        "frontier": "task-compact",
+        "forbid_completed_claims": true,
+        "must_not_contain": ["Repeated exploratory discussion"],
+        "surface_status": "unverifiable",
+        "compression_max_ratio": 0.25
+      }
+    },
+    {
+      "id": "multi-session-incremental",
+      "transcript": "A new session only mentions the current task. Prior accepted post-MVP work is not mentioned and therefore must survive by omission.",
+      "mode": "incremental",
+      "prior": {
+        "decisions": [
+          {"id": "dec-incremental", "statement": "Silence is not cancellation.", "status": "accepted"}
+        ],
+        "items": [
+          {"id": "rel-inc", "kind": "release", "status": "accepted"},
+          {"id": "epic-inc", "kind": "epic", "status": "accepted", "parent_id": "rel-inc"},
+          {"id": "task-inc-done", "kind": "task", "status": "verified_done", "parent_id": "epic-inc", "evidence_refs": ["evidence:inc-done"]},
+          {"id": "story-inc-post", "kind": "story", "status": "accepted", "parent_id": "epic-inc", "priority": "medium"}
+        ],
+        "next_frontier": null
+      },
+      "current": {
+        "decisions": [],
+        "items": [
+          {"id": "task-inc-current", "kind": "task", "status": "in_progress", "parent_id": "epic-inc", "priority": "critical"}
+        ],
+        "next_frontier": "task-inc-current"
+      },
+      "expected": {
+        "decision_statuses": {"dec-incremental": "accepted"},
+        "item_statuses": {"task-inc-done": "verified_done", "story-inc-post": "accepted", "task-inc-current": "in_progress"},
+        "preserved_item_ids": ["task-inc-done", "story-inc-post", "task-inc-current"],
+        "depends_on": {},
+        "frontier": "task-inc-current",
+        "forbid_completed_claims": true,
+        "must_not_contain": [],
+        "surface_status": "unverifiable"
+      }
+    },
+    {
+      "id": "mvp-with-post-mvp-work",
+      "transcript": "The MVP task is verified complete, but accepted post-MVP hardening remains. Finishing MVP must not make the later story disappear.",
+      "mode": "bootstrap",
+      "current": {
+        "items": [
+          {"id": "rel-mvp", "kind": "release", "status": "accepted"},
+          {"id": "epic-mvp", "kind": "epic", "status": "accepted", "parent_id": "rel-mvp"},
+          {"id": "task-mvp", "kind": "task", "status": "verified_done", "parent_id": "epic-mvp", "evidence_refs": ["evidence:mvp"]},
+          {"id": "story-post-mvp", "kind": "story", "status": "ready", "parent_id": "epic-mvp", "priority": "high"}
+        ],
+        "next_frontier": "story-post-mvp"
+      },
+      "expected": {
+        "decision_statuses": {},
+        "item_statuses": {"task-mvp": "verified_done", "story-post-mvp": "ready"},
+        "preserved_item_ids": ["task-mvp", "story-post-mvp"],
+        "depends_on": {},
+        "frontier": "story-post-mvp",
+        "forbid_completed_claims": true,
+        "must_not_contain": [],
+        "surface_status": "unverifiable"
+      }
+    },
+    {
+      "id": "repository-ahead-of-plan",
+      "transcript": "The plan still says a story is accepted, while the receiving repository may already contain the implementation. Portable state must preserve the plan but force reconciliation before execution.",
+      "mode": "bootstrap",
+      "current": {
+        "items": [
+          {"id": "story-repo-ahead", "kind": "story", "status": "accepted", "priority": "high"}
+        ],
+        "uncertainties": ["Repository may be ahead of this portable plan."],
+        "next_frontier": null
+      },
+      "expected": {
+        "decision_statuses": {},
+        "item_statuses": {"story-repo-ahead": "accepted"},
+        "preserved_item_ids": ["story-repo-ahead"],
+        "depends_on": {},
+        "frontier": null,
+        "forbid_completed_claims": true,
+        "must_not_contain": [],
+        "surface_status": "unverifiable"
+      }
+    },
+    {
+      "id": "plan-ahead-of-repository",
+      "transcript": "The accepted plan has a dependency-ready task that is not yet known to exist in the repository. It may be a frontier only after receiving-surface reconciliation.",
+      "mode": "bootstrap",
+      "current": {
+        "items": [
+          {"id": "task-plan-ahead", "kind": "task", "status": "ready", "priority": "critical"}
+        ],
+        "next_frontier": "task-plan-ahead"
+      },
+      "expected": {
+        "decision_statuses": {},
+        "item_statuses": {"task-plan-ahead": "ready"},
+        "preserved_item_ids": ["task-plan-ahead"],
+        "depends_on": {},
+        "frontier": "task-plan-ahead",
+        "forbid_completed_claims": true,
+        "must_not_contain": [],
+        "surface_status": "unverifiable"
+      }
+    },
+    {
+      "id": "portable-seal-without-verification",
+      "transcript": "ChatGPT has conversation state but no authoritative repository. It may seal the portable checkpoint for integrity, but that must remain empirically unverifiable.",
+      "mode": "bootstrap",
+      "current": {
+        "decisions": [
+          {"id": "dec-seal", "statement": "Seal portable handoffs for integrity only.", "status": "accepted"}
+        ],
+        "items": [
+          {"id": "task-portable", "kind": "task", "status": "ready", "priority": "critical"}
+        ],
+        "next_frontier": "task-portable"
+      },
+      "expected": {
+        "decision_statuses": {"dec-seal": "accepted"},
+        "item_statuses": {"task-portable": "ready"},
+        "preserved_item_ids": ["task-portable"],
+        "depends_on": {},
+        "frontier": "task-portable",
+        "forbid_completed_claims": true,
+        "must_not_contain": [],
+        "surface_status": "unverifiable"
+      }
+    }
+  ]
+}
