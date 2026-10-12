@@ -1,0 +1,106 @@
+name: Project Continuity Validation
+
+on:
+  pull_request:
+    paths:
+      - 'plugins/project-continuity/**'
+      - '.github/workflows/project-continuity.yml'
+  push:
+    branches:
+      - 'feat/project-continuity-mobile-*'
+    paths:
+      - 'plugins/project-continuity/**'
+      - '.github/workflows/project-continuity.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install validator dependencies
+        run: python -m pip install --disable-pip-version-check pyyaml pillow jsonschema
+
+      - name: Check package manifest freshness
+        shell: python
+        run: |
+          from pathlib import Path
+          import hashlib
+          import sys
+
+          root = Path('plugins/project-continuity')
+          manifest = root / 'MANIFEST.sha256'
+          declared = {}
+          for line in manifest.read_text(encoding='utf-8').splitlines():
+              if not line.strip():
+                  continue
+              digest, rel = line.split('  ', 1)
+              declared[rel] = digest
+
+          skip_names = {'.git', '.continuity', '__pycache__'}
+          skip_files = {'.gitignore', 'AGENTS.md', 'CONTINUITY.md', '.DS_Store'}
+          actual = {}
+          for path in sorted(root.rglob('*')):
+              if not path.is_file():
+                  continue
+              rel = path.relative_to(root)
+              if rel.name == 'MANIFEST.sha256' or path.suffix in {'.pyc', '.pyo'}:
+                  continue
+              if any(part in skip_names for part in rel.parts):
+                  continue
+              if rel.as_posix() in skip_files:
+                  continue
+              actual[rel.as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
+
+          ok = True
+          if set(declared) != set(actual):
+              ok = False
+              print('MANIFEST FILE-SET MISMATCH')
+              print('missing from manifest:', sorted(set(actual) - set(declared)))
+              print('stale manifest entries:', sorted(set(declared) - set(actual)))
+          for rel, digest in actual.items():
+              if declared.get(rel) != digest:
+                  ok = False
+                  print(f'MANIFEST HASH MISMATCH: {rel}')
+                  print(f'  expected: {digest}')
+                  print(f'  declared: {declared.get(rel)}')
+          if not ok:
+              print('\nGENERATED MANIFEST:\n')
+              for rel in sorted(actual):
+                  print(f'{actual[rel]}  {rel}')
+              sys.exit(1)
+          print('PASS: package manifest is fresh')
+
+      - name: Validate plugin package
+        run: python plugins/project-continuity/scripts/validate_plugin.py plugins/project-continuity
+
+      - name: Run plugin package tests
+        run: python -m unittest discover -s plugins/project-continuity/tests -v
+
+      - name: Validate bundled skill
+        run: python plugins/project-continuity/skills/project-continuity/scripts/validate_skill.py
+
+      - name: Run PCP and mobile foundation tests
+        run: python -m unittest discover -s plugins/project-continuity/skills/project-continuity/tests -v
+
+      - name: Validate JSON Schemas
+        shell: python
+        run: |
+          from pathlib import Path
+          import json
+          from jsonschema import Draft202012Validator
+
+          schemas = Path('plugins/project-continuity/skills/project-continuity/assets/schemas')
+          for path in sorted(schemas.glob('*.json')):
+              Draft202012Validator.check_schema(json.loads(path.read_text(encoding='utf-8')))
+              print(f'PASS: {path.name}')
