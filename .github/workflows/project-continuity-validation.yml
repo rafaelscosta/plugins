@@ -86,3 +86,9 @@ jobs:
       - name: Run Project Continuity skill tests
         working-directory: plugins/project-continuity
         run: python -m unittest discover -s skills/project-continuity/tests -v
+
+      - name: Run canonical Session Compiler gold eval
+        working-directory: plugins/project-continuity
+        run: |
+          python skills/project-continuity/scripts/session_eval.py \
+            --out /tmp/project-continuity-session-eval-report.json
