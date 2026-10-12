@@ -676,6 +676,26 @@ def reconcile(
             )
             changed = True
 
+    # Parent invalidation can change completion truth after the first dependency
+    # pass. Recheck every executable item, including observed ones, against that
+    # final truth before returning a coherent planning snapshot.
+    for item in items:
+        if item.get("status") not in {"ready", "in_progress"} or _dependencies_ready(item, by_id):
+            continue
+        item_id = item["id"]
+        previous = transition_by_id.get(item_id)
+        item["status"] = "blocked"
+        _apply_origin(item, request)
+        transition_by_id[item_id] = _transition(
+            item_id=item_id,
+            from_status=prior_by_id[item_id]["status"],
+            to_status="blocked",
+            classification="dependency-invalidated",
+            evidence_refs=previous["evidence_refs"] if previous else [],
+            repository_refs=previous["repository_refs"] if previous else [],
+            reason="A dependency lost verified completion after aggregate-parent reconciliation.",
+        )
+
     # Revalidate the graph/result before assigning a fresh digest.
     result["planning_id"] = "planning-reconciled-" + hashlib.sha256(
         canonical_bytes(

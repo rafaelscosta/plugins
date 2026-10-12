@@ -288,6 +288,24 @@ class PlanningReconciliationTests(unittest.TestCase):
             "invalidated-verification",
         )
 
+    def test_reopened_parent_blocks_dependents_in_the_same_transaction(self):
+        planning = base_planning()
+        parent = by_id(planning, "story-001")
+        parent["status"] = "verified_done"
+        parent["evidence_refs"] = ["E-STORY"]
+        child = by_id(planning, "task-main")
+        child["status"] = "verified_done"
+        child["evidence_refs"] = ["E-CHILD"]
+        planning["items"].append(item("story-later", "story", "Later story", "accepted", parent_id="epic-001"))
+        planning["items"].append(item("task-later", "task", "Later task", "ready",
+                                      parent_id="story-later", depends_on=["story-001"]))
+        refresh(planning)
+        request = request_for(planning, [observation("task-main", "invalidate_verification", evidence=["E-DRIFT"])])
+        result, report = reconcile.reconcile(planning, request)
+        self.assertEqual(by_id(result, "story-001")["status"], "ready")
+        self.assertEqual(by_id(result, "task-later")["status"], "blocked")
+        self.assertEqual(transition(report, "task-later")["classification"], "dependency-invalidated")
+
     def test_frontier_prefers_executable_leaf_over_container(self):
         """A release/epic/story with active children is never selected over its task leaf."""
         planning = base_planning()
