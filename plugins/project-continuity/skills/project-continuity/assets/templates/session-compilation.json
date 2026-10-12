@@ -1,0 +1,30 @@
+{
+  "format": "pcp-session-compilation/1",
+  "compilation_id": "compilation-REPLACE-ME",
+  "created_at": "1970-01-01T00:00:00Z",
+  "project": {
+    "id": "replace-me",
+    "name": "Replace with project name",
+    "repository": null
+  },
+  "producer": {
+    "surface": "chatgpt",
+    "model": null,
+    "session_ref": null
+  },
+  "prior_checkpoint": null,
+  "objective": {
+    "current": "Replace with the active objective.",
+    "definition_of_done": []
+  },
+  "decisions": [],
+  "findings": [],
+  "planning": {
+    "vision": null,
+    "items": []
+  },
+  "blockers": [],
+  "risks": [],
+  "uncertainties": [],
+  "next_frontier": null
+}
