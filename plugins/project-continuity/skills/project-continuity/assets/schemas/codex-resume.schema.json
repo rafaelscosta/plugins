@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/project-continuity/pcp-codex-resume-1/codex-resume.schema.json",
+  "title": "Project Continuity Codex Resume v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "created_at",
+    "reference",
+    "transport",
+    "local_project",
+    "source",
+    "pcp",
+    "planning",
+    "resume_brief",
+    "execution_gate"
+  ],
+  "properties": {
+    "format": {"const": "pcp-codex-resume/1"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "finalized_at": {"type": "string", "format": "date-time"},
+    "reference": {"type": ["string", "null"]},
+    "transport": {"enum": ["file", "github"]},
+    "local_project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "head_at_prepare", "generation_at_prepare"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1},
+        "generation_at_prepare": {"type": "integer", "minimum": 0},
+        "head_at_prepare": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["checkpoint_id", "content_digest"],
+          "properties": {
+            "checkpoint_id": {"type": ["string", "null"]},
+            "content_digest": {
+              "anyOf": [
+                {"type": "null"},
+                {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+              ]
+            }
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_id",
+        "checkpoint_id",
+        "checkpoint_digest",
+        "checkpoint_status",
+        "surface_status",
+        "handoff_id"
+      ],
+      "properties": {
+        "project_id": {"type": "string", "minLength": 1},
+        "checkpoint_id": {"type": "string", "minLength": 1},
+        "checkpoint_digest": {
+          "anyOf": [
+            {"type": "null"},
+            {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+          ]
+        },
+        "checkpoint_status": {"enum": ["draft", "sealed"]},
+        "surface_status": {"type": "string", "minLength": 1},
+        "handoff_id": {"type": ["string", "null"]}
+      }
+    },
+    "pcp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compatibility",
+        "compatibility_detail",
+        "reconciliation_draft",
+        "external_promoted",
+        "historical_completion_claims"
+      ],
+      "properties": {
+        "compatibility": {
+          "enum": [
+            "exact",
+            "advanced",
+            "drift",
+            "diverged",
+            "project-mismatch",
+            "unverifiable",
+            "invalid"
+          ]
+        },
+        "compatibility_detail": {"type": ["object", "null"]},
+        "reconciliation_draft": {"type": "string", "minLength": 1},
+        "external_promoted": {"const": false},
+        "historical_completion_claims": {"type": "array"},
+        "local_reconciliation_head": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["checkpoint_id", "content_digest", "verification_status"],
+          "properties": {
+            "checkpoint_id": {"type": "string", "minLength": 1},
+            "content_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+            "verification_status": {"const": "exact"}
+          }
+        }
+      }
+    },
+    "planning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "prior", "result", "transitions", "frontier"],
+      "properties": {
+        "status": {"enum": ["absent", "reconciliation-required", "reconciled"]},
+        "prior": {"type": ["object", "null"]},
+        "result": {"type": ["object", "null"]},
+        "transitions": {"type": "array"},
+        "frontier": {"type": ["object", "null"]}
+      }
+    },
+    "resume_brief": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["objective", "surviving_decisions", "blockers", "candidate_frontier"],
+      "properties": {
+        "objective": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["text", "confidence", "instruction"],
+          "properties": {
+            "text": {"type": ["string", "null"]},
+            "confidence": {"const": "reported"},
+            "instruction": {"type": "string", "minLength": 1}
+          }
+        },
+        "surviving_decisions": {"type": "array"},
+        "blockers": {"type": "array"},
+        "candidate_frontier": {
+          "anyOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "item_id",
+                "title",
+                "kind",
+                "status",
+                "priority",
+                "acceptance_criteria",
+                "depends_on"
+              ],
+              "properties": {
+                "item_id": {"type": "string", "minLength": 1},
+                "title": {"type": "string", "minLength": 1},
+                "kind": {"enum": ["release", "epic", "story", "task"]},
+                "status": {"enum": ["accepted", "ready", "in_progress"]},
+                "priority": {"enum": ["critical", "high", "medium", "low"]},
+                "acceptance_criteria": {
+                  "type": "array",
+                  "items": {"type": "string", "minLength": 1}
+                },
+                "depends_on": {
+                  "type": "array",
+                  "items": {"type": "string", "minLength": 1},
+                  "uniqueItems": true
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "execution_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository_reconciliation_required",
+        "planning_reconciliation_required",
+        "candidate_frontier_available",
+        "execution_ready",
+        "external_head_promotion_allowed",
+        "next_required_action",
+        "required_consume_session_ref"
+      ],
+      "properties": {
+        "repository_reconciliation_required": {"type": "boolean"},
+        "planning_reconciliation_required": {"type": "boolean"},
+        "candidate_frontier_available": {"type": "boolean"},
+        "execution_ready": {"type": "boolean"},
+        "external_head_promotion_allowed": {"const": false},
+        "next_required_action": {
+          "enum": [
+            "reconcile-planning",
+            "seal-local-reconciliation",
+            "execute-candidate-frontier",
+            "no-executable-frontier"
+          ]
+        },
+        "required_consume_session_ref": {"type": "string", "pattern": "^consume:pcp-"}
+      }
+    }
+  }
+}
