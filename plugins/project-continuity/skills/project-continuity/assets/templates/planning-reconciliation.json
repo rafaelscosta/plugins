@@ -1,0 +1,17 @@
+{
+  "format": "pcp-planning-reconciliation/1",
+  "reconciliation_id": "reconcile-REPLACE-ME",
+  "created_at": "1970-01-01T00:00:00Z",
+  "project_id": "replace-me",
+  "planning_id": "planning-REPLACE-ME",
+  "planning_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "observations": [
+    {
+      "item_id": "task-replace-me",
+      "operation": "recheck_dependencies",
+      "evidence_refs": [],
+      "repository_refs": [],
+      "reason": "Replace with the bounded current observation used for reconciliation."
+    }
+  ]
+}

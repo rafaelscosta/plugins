@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/project-continuity/pcp-planning-reconciliation-1/planning-reconciliation.schema.json",
+  "title": "Project Continuity Planning Reconciliation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "reconciliation_id",
+    "created_at",
+    "project_id",
+    "planning_id",
+    "planning_digest",
+    "observations"
+  ],
+  "properties": {
+    "format": {"const": "pcp-planning-reconciliation/1"},
+    "reconciliation_id": {
+      "type": "string",
+      "pattern": "^reconcile-[A-Za-z0-9._-]{8,}$"
+    },
+    "created_at": {"type": "string", "format": "date-time"},
+    "project_id": {"type": "string", "minLength": 1},
+    "planning_id": {
+      "type": "string",
+      "pattern": "^planning-[A-Za-z0-9._-]{8,}$"
+    },
+    "planning_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "observations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "item_id",
+          "operation",
+          "evidence_refs",
+          "repository_refs",
+          "reason"
+        ],
+        "properties": {
+          "item_id": {"type": "string", "minLength": 1},
+          "operation": {
+            "enum": [
+              "verify_complete",
+              "verify_incomplete",
+              "invalidate_verification",
+              "start_progress",
+              "set_blocked",
+              "recheck_dependencies"
+            ]
+          },
+          "evidence_refs": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "uniqueItems": true
+          },
+          "repository_refs": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "uniqueItems": true
+          },
+          "reason": {"type": "string", "minLength": 1}
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "operation": {
+                  "enum": [
+                    "verify_complete",
+                    "verify_incomplete",
+                    "invalidate_verification"
+                  ]
+                }
+              },
+              "required": ["operation"]
+            },
+            "then": {
+              "properties": {
+                "evidence_refs": {"minItems": 1}
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
